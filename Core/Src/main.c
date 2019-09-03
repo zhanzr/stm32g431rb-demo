@@ -93,7 +93,7 @@ int main(void)
   MX_GPIO_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */	
-	printf("First Demo %08X %u\n", SCB->CPUID, SystemCoreClock);
+	printf("Hello World, %08X %u\n", SCB->CPUID, SystemCoreClock);
 	/* USER CODE END 2 */
 
   /* Infinite loop */
