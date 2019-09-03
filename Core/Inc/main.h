@@ -33,7 +33,7 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "stm32g4xx_nucleo.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -74,6 +74,16 @@ void Error_Handler(void);
 #define T_SWO_Pin GPIO_PIN_3
 #define T_SWO_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
+/* Pass/Fail Status */
+#define PASS              0
+#define FAIL              1
+
+/* Size of data array */
+#define ARRAY_SIZE        64U
+
+/* Reference values in Q1.31 format */
+#define DELTA             (int32_t)0x00001000       /* Max residual error for sines, with 6 cycle precision:
+                                                       2^-19 max residual error, ie 31-19=12 LSB, ie <0x1000 */
 
 /* USER CODE END Private defines */
 
