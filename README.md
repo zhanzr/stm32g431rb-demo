@@ -23,7 +23,15 @@ https://dspguru.com/dsp/faqs/cordic/
 https://www.allaboutcircuits.com/technical-articles/an-introduction-to-the-cordic-algorithm/
 
 Cordic Test 1, 410FC241 170000000
-Correct CORDIC output[0-55 = 55]
-Correct CMSIS DSP output[55-190 = 135]
-Correct FPU Single precision output[190-469 = 279]
-Correct Soft float point double precision output[470-10061 = 9591]
+With FPU
+Correct CORDIC output[0-39 = 39]
+Correct CMSIS DSP output[39-159 = 120]
+Correct FPU Single precision output[160-412 = 252]
+Correct Soft float point double precision output[412-9882 = 9470]
+
+Without FPU
+Cordic Test 1, 410FC241 170000000
+Correct CORDIC output[0-39 = 39]
+Correct CMSIS DSP output[39-159 = 120]
+Correct FPU Single precision output[160-2451 = 2291]
+Correct Soft float point double precision output[2451-10774 = 8323]
