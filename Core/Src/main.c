@@ -22,6 +22,7 @@
 #include "main.h"
 #include "cordic.h"
 #include "dma.h"
+#include "fmac.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -188,12 +189,12 @@ uint32_t Check_Residual_Error(int32_t VarA, int32_t VarB, uint32_t MaxError) {
   * @brief  The application entry point.
   * @retval int
   */
-int main(void) {
+int main(void)
+{
   /* USER CODE BEGIN 1 */
 	uint32_t start_ticks;
 	uint32_t end_ticks;
   /* USER CODE END 1 */
-  
 
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -216,6 +217,7 @@ int main(void) {
   MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_CORDIC_Init();
+  MX_FMAC_Init();
   /* USER CODE BEGIN 2 */
 	printf("Cordic Test 1, %08X %u\n", SCB->CPUID, SystemCoreClock);
   /*## Configure the CORDIC peripheral ####################################*/
