@@ -59,6 +59,8 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define ADC_CHAN_NO 3
+#define VREF_MV 3300
 #define B1_Pin GPIO_PIN_13
 #define B1_GPIO_Port GPIOC
 #define LD2_Pin GPIO_PIN_5
@@ -78,8 +80,57 @@ void Error_Handler(void);
 #define PASS              0
 #define FAIL              1
 
-/* Size of data array */
-#define ARRAY_SIZE        64U
+/* Not called/called status */
+#define CALLBACK_NOT_CALLED     0
+#define CALLBACK_CALLED         1
+
+/* Size of the data arrays */
+#define ARRAY_SIZE              256
+
+
+
+/* Filter parameter P: number of feed-forward taps or coefficients in the range [2:64] */
+#define COEFF_VECTOR_B_SIZE     7
+
+/* Filter parameter Q: number of feedback coefficients in the range [1:COEFF_VECTOR_B_SIZE-1] */
+#define COEFF_VECTOR_A_SIZE     6
+
+/* Filter parameter R: gain in the range [0:7] */
+#define GAIN                    0
+
+
+
+/* Throughput parameter: extra space in the input buffer (minimum: 0) */
+#define MEMORY_PARAMETER_D1     114
+
+/* Throughput parameter: extra space in the output buffer (minimum: 1) */
+#define MEMORY_PARAMETER_D2     115
+
+/* Throughput parameter: watermark threshold for the input buffer */
+#define INPUT_THRESHOLD         FMAC_THRESHOLD_1
+
+/* Throughput parameter: watermark threshold for the output buffer (inferior or equal to MEMORY_PARAMETER_D1) */
+#define OUTPUT_THRESHOLD        FMAC_THRESHOLD_1
+
+
+
+/* FMAC internal memory configuration: base address of the coefficient buffer */
+#define COEFFICIENT_BUFFER_BASE 0
+
+/* FMAC internal memory configuration: size of the two coefficient buffers */
+#define COEFFICIENT_BUFFER_SIZE COEFF_VECTOR_B_SIZE + COEFF_VECTOR_A_SIZE
+
+/* FMAC internal memory configuration: base address of the input buffer */
+#define INPUT_BUFFER_BASE       COEFFICIENT_BUFFER_SIZE
+
+/* FMAC internal memory configuration: size of the input buffer */
+#define INPUT_BUFFER_SIZE       COEFF_VECTOR_B_SIZE + MEMORY_PARAMETER_D1
+
+/* FMAC internal memory configuration: base address of the input buffer */
+#define OUTPUT_BUFFER_BASE      COEFFICIENT_BUFFER_SIZE + INPUT_BUFFER_SIZE
+
+/* FMAC internal memory configuration: size of the input buffer */
+#define OUTPUT_BUFFER_SIZE      COEFF_VECTOR_A_SIZE + MEMORY_PARAMETER_D2
 
 /* Reference values in Q1.31 format */
 #define DELTA             (int32_t)0x00001000       /* Max residual error for sines, with 6 cycle precision:

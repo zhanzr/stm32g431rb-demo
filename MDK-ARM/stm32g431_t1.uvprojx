@@ -183,7 +183,7 @@
             <hadIRAM>1</hadIRAM>
             <hadXRAM>0</hadXRAM>
             <uocXRam>0</uocXRam>
-            <RvdsVP>1</RvdsVP>
+            <RvdsVP>2</RvdsVP>
             <RvdsMve>0</RvdsMve>
             <hadIRAM2>0</hadIRAM2>
             <hadIROM2>0</hadIROM2>
@@ -338,7 +338,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32G431xx,USE_HAL_DRIVER,STM32G431xx, USE_NUCLEO_64,ARM_MATH_DSP</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc; ../Drivers/STM32G4xx_HAL_Driver/Inc; ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy; ../Drivers/CMSIS/Device/ST/STM32G4xx/Include; ../Drivers/CMSIS/Include; G:\Keil_v5\ARM\PACK\Keil\STM32G4xx_DFP\1.1.0\Drivers\BSP\STM32G4xx_Nucleo</IncludePath>
+              <IncludePath>../Core/Inc;    ../Drivers/STM32G4xx_HAL_Driver/Inc;    ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy;    ../Drivers/CMSIS/Device/ST/STM32G4xx/Include;    ../Drivers/CMSIS/Include;    G:\Keil_v5\ARM\PACK\Keil\STM32G4xx_DFP\1.1.0\Drivers\BSP\STM32G4xx_Nucleo</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -403,6 +403,11 @@
               <FilePath>../Core/Src/gpio.c</FilePath>
             </File>
             <File>
+              <FileName>adc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Core/Src/adc.c</FilePath>
+            </File>
+            <File>
               <FileName>cordic.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Core/Src/cordic.c</FilePath>
@@ -416,6 +421,11 @@
               <FileName>fmac.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Core/Src/fmac.c</FilePath>
+            </File>
+            <File>
+              <FileName>rng.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Core/Src/rng.c</FilePath>
             </File>
             <File>
               <FileName>usart.c</FileName>
@@ -455,12 +465,6 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>::CMSIS</GroupName>
-        </Group>
-        <Group>
-          <GroupName>::Compiler</GroupName>
-        </Group>
-        <Group>
           <GroupName>Drivers/STM32G4xx_HAL_Driver</GroupName>
           <Files>
             <File>
@@ -469,9 +473,19 @@
               <FilePath>../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_gpio.c</FilePath>
             </File>
             <File>
-              <FileName>stm32g4xx_hal_cordic.c</FileName>
+              <FileName>stm32g4xx_hal_adc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_cordic.c</FilePath>
+              <FilePath>../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_adc.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32g4xx_hal_adc_ex.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_adc_ex.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32g4xx_ll_adc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_ll_adc.c</FilePath>
             </File>
             <File>
               <FileName>stm32g4xx_hal.c</FileName>
@@ -534,9 +548,19 @@
               <FilePath>../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_cortex.c</FilePath>
             </File>
             <File>
+              <FileName>stm32g4xx_hal_cordic.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_cordic.c</FilePath>
+            </File>
+            <File>
               <FileName>stm32g4xx_hal_fmac.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_fmac.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32g4xx_hal_rng.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_rng.c</FilePath>
             </File>
             <File>
               <FileName>stm32g4xx_hal_tim.c</FileName>
@@ -574,6 +598,12 @@
               <FilePath>../Core/Src/system_stm32g4xx.c</FilePath>
             </File>
           </Files>
+        </Group>
+        <Group>
+          <GroupName>::CMSIS</GroupName>
+        </Group>
+        <Group>
+          <GroupName>::Compiler</GroupName>
         </Group>
       </Groups>
     </Target>

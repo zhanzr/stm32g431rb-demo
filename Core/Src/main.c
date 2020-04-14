@@ -20,9 +20,11 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
 #include "cordic.h"
 #include "dma.h"
 #include "fmac.h"
+#include "rng.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -66,122 +68,152 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-/* Number of calculation loops (depends on clock config) */
-#define LOOP_NB           (uint32_t)((170000000 / 750) / ARRAY_SIZE)
 
 /* CORDIC configuration structure */
 CORDIC_ConfigTypeDef sCordicConfig;
 
-/* Array of angles in Q1.31 format, regularly incremented from 0 to 2*pi */
-static int32_t aAnglesCordic[ARRAY_SIZE] =
-{
-  0x00000000, 0x04000000, 0x08000000, 0x0C000000,
-  0x10000000, 0x14000000, 0x18000000, 0x1C000000,
-  0x20000000, 0x24000000, 0x28000000, 0x2C000000,
-  0x30000000, 0x34000000, 0x38000000, 0x3C000000,
-  0x40000000, 0x44000000, 0x48000000, 0x4C000000,
-  0x50000000, 0x54000000, 0x58000000, 0x5C000000,
-  0x60000000, 0x64000000, 0x68000000, 0x6C000000,
-  0x70000000, 0x74000000, 0x78000000, 0x7C000000,
-  0x80000000, 0x84000000, 0x88000000, 0x8C000000,
-  0x90000000, 0x94000000, 0x98000000, 0x9C000000,
-  0xA0000000, 0xA4000000, 0xA8000000, 0xAC000000,
-  0xB0000000, 0xB4000000, 0xB8000000, 0xBC000000,
-  0xC0000000, 0xC4000000, 0xC8000000, 0xCC000000,
-  0xD0000000, 0xD4000000, 0xD8000000, 0xDC000000,
-  0xE0000000, 0xE4000000, 0xE8000000, 0xEC000000,
-  0xF0000000, 0xF4000000, 0xF8000000, 0xFC000000
+__IO uint16_t g_ADCBuf[ADC_CHAN_NO];
+
+#if defined(__ARMCC_VERSION)
+int stdout_putchar (int ch) {
+	uint8_t c = ch;
+	HAL_UART_Transmit(&huart1, &c, 1, 1);
+	return ch;
+}
+
+int stderr_putchar (int ch) {
+	uint8_t c = ch;
+	HAL_UART_Transmit(&huart1, &c, 1, 1);
+	return ch;
+}
+
+void ttywrch (int ch) {
+	uint8_t c = ch;
+	HAL_UART_Transmit(&huart1, &c, 1, 1);	
+}
+#else
+int _write (int fd, const void *buf, size_t count) {
+	for(uint32_t i=0; i<count; ++i) {
+		HAL_UART_Transmit(&huart2, buf+i, 1, 1);
+	}
+	return count;
+}
+#endif
+
+/* FMAC configuration structure */
+FMAC_FilterConfigTypeDef sFmacConfig;
+
+/* Array of filter coefficients A (feedback coefficients) in Q1.15 format */
+static int16_t aFilterCoeffA[COEFF_VECTOR_A_SIZE] = {
+   19448,-29793,  9645, -4884,   671,   -81
 };
 
-/* Array of angles for CMSIS DSP library Q1.31 format, regularly incremented from 0 to 2*pi */
-//Note: The CMSIS DSP Q Format is different from CORDIC Q Format
-static int32_t aAnglesLib[ARRAY_SIZE] =
-{
-  0x00000000, 0x02000000, 0x04000000, 0x06000000,
-  0x08000000, 0x0A000000, 0x0C000000, 0x0E000000,
-  0x10000000, 0x12000000, 0x14000000, 0x16000000,
-  0x18000000, 0x1A000000, 0x1C000000, 0x1E000000,
-  0x20000000, 0x22000000, 0x24000000, 0x26000000,
-  0x28000000, 0x2A000000, 0x2C000000, 0x2E000000,
-  0x30000000, 0x32000000, 0x34000000, 0x36000000,
-  0x38000000, 0x3A000000, 0x3C000000, 0x3E000000,
-  0x40000000, 0x42000000, 0x44000000, 0x46000000,
-  0x48000000, 0x4A000000, 0x4C000000, 0x4E000000,
-  0x50000000, 0x52000000, 0x54000000, 0x56000000,
-  0x58000000, 0x5A000000, 0x5C000000, 0x5E000000,
-  0x60000000, 0x62000000, 0x64000000, 0x66000000,
-  0x68000000, 0x6A000000, 0x6C000000, 0x6E000000,
-  0x70000000, 0x72000000, 0x74000000, 0x76000000,
-  0x78000000, 0x7A000000, 0x7C000000, 0x7E000000
+/* Array of filter coefficients B (feed-forward taps) in Q1.15 format */
+static int16_t aFilterCoeffB[COEFF_VECTOR_B_SIZE] = {
+     590,  3540,  8851, 11801,  8851,  3540,   590
 };
 
-/* Array of reference sines in Q1.31 format */
-static int32_t aRefSin[ARRAY_SIZE] = {
-	0x00000000, 0x0C8BD35E, 0x18F8B83C, 0x25280C5D, 
-	0x30FBC54D, 0x3C56BA6F, 0x471CECE6, 0x5133CC93, 
-	0x5A827999, 0x62F201AB, 0x6A6D98A3, 0x70E2CBC5, 
-	0x7641AF3C, 0x7A7D055A, 0x7D8A5F3F, 0x7F62368E, 
-	0x7FFFFFFF, 0x7F62368E, 0x7D8A5F3F, 0x7A7D055A, 
-	0x7641AF3C, 0x70E2CBC5, 0x6A6D98A3, 0x62F201AB, 
-	0x5A827999, 0x5133CC93, 0x471CECE6, 0x3C56BA6F, 
-	0x30FBC54D, 0x25280C5D, 0x18F8B83C, 0x0C8BD35E, 
-	0x00000000, 0xF3742CA2, 0xE70747C4, 0xDAD7F3A3, 
-	0xCF043AB3, 0xC3A94591, 0xB8E3131A, 0xAECC336D, 
-	0xA57D8667, 0x9D0DFE55, 0x9592675D, 0x8F1D343B, 
-	0x89BE50C4, 0x8582FAA6, 0x8275A0C1, 0x809DC972, 
-	0x80000001, 0x809DC972, 0x8275A0C1, 0x8582FAA6, 
-	0x89BE50C4, 0x8F1D343B, 0x9592675D, 0x9D0DFE55, 
-	0xA57D8667, 0xAECC336D, 0xB8E3131A, 0xC3A94591, 
-	0xCF043AB3, 0xDAD7F3A3, 0xE70747C4, 0xF3742CA2, 	
+/* Array of input values in Q1.15 format */
+static int16_t aInputValues[ARRAY_SIZE] = {
+       0,  5276, -1548, 13844,     7, 17551,  5802, 16142, 14198, 12009,
+   21624,  8678, 24576,  8672, 21611, 11990, 14172, 16111,  5765, 17510,
+     -37, 13797, -1598,  5225,   -51, -5327,  1498,-13892,   -52,-17592,
+   -5838,-16174,-14223,-12029,-21637, -8685,-24576, -8665,-21597,-11970,
+  -14146,-16080, -5729,-17469,    82,-13749,  1647, -5174,   103,  5378,
+   -1449, 13939,    96, 17632,  5874, 16205, 14249, 12048, 21650,  8691,
+   24575,  8658, 21583, 11950, 14120, 16048,  5692, 17428,  -127, 13701,
+   -1697,  5122,  -154, -5429,  1399,-13987,  -141,-17673, -5910,-16236,
+  -14274,-12068,-21663, -8698,-24575, -8651,-21570,-11930,-14094,-16016,
+   -5655,-17387,   171,-13654,  1747, -5071,   206,  5480, -1349, 14034,
+     185, 17713,  5946, 16267, 14299, 12087, 21676,  8704, 24574,  8643,
+   21556, 11909, 14067, 15984,  5618, 17346,  -216, 13606, -1797,  5020,
+    -257, -5530,  1300,-14081,  -229,-17754, -5982,-16297,-14324,-12106,
+  -21688, -8710,-24574, -8636,-21542,-11889,-14041,-15952, -5581,-17304,
+     261,-13558,  1847, -4969,   309,  5581, -1250, 14128,   273, 17794,
+    6018, 16328, 14349, 12124, 21701,  8715, 24573,  8628, 21527, 11868,
+   14014, 15920,  5544, 17263,  -306, 13510, -1897,  4918,  -360, -5632,
+    1201,-14176,  -317,-17834, -6053,-16358,-14374,-12143,-21713, -8721,
+  -24571, -8620,-21513,-11847,-13988,-15888, -5507,-17221,   352,-13462,
+    1947, -4867,   412,  5683, -1152, 14223,   361, 17874,  6089, 16389,
+   14399, 12162, 21725,  8726, 24570,  8612, 21498, 11826, 13961, 15856,
+    5470, 17180,  -397, 13414, -1997,  4816,  -463, -5734,  1102,-14270,
+    -405,-17914, -6124,-16419,-14423,-12180,-21737, -8732,-24569, -8604,
+  -21484,-11805,-13934,-15823, -5432,-17138,   442,-13366,  2047, -4764,
+     515,  5785, -1053, 14317,   449, 17954,  6160, 16449, 14447, 12198,
+   21749,  8737, 24567,  8596, 21469, 11784
 };
 
-/* Array of reference cosines in Q1.31 format */
-static int32_t aRefCos[ARRAY_SIZE] = {
-	0x7FFFFFFF, 0x7F62368E, 0x7D8A5F3F, 0x7A7D055A, 
-	0x7641AF3C, 0x70E2CBC5, 0x6A6D98A3, 0x62F201AB, 
-	0x5A827999, 0x5133CC93, 0x471CECE6, 0x3C56BA6F, 
-	0x30FBC54D, 0x25280C5D, 0x18F8B83C, 0x0C8BD35E, 
-	0x00000000, 0xF3742CA2, 0xE70747C4, 0xDAD7F3A3, 
-	0xCF043AB3, 0xC3A94591, 0xB8E3131A, 0xAECC336D, 
-	0xA57D8667, 0x9D0DFE55, 0x9592675D, 0x8F1D343B, 
-	0x89BE50C4, 0x8582FAA6, 0x8275A0C1, 0x809DC972, 
-	0x80000001, 0x809DC972, 0x8275A0C1, 0x8582FAA6, 
-	0x89BE50C4, 0x8F1D343B, 0x9592675D, 0x9D0DFE55, 
-	0xA57D8667, 0xAECC336D, 0xB8E3131A, 0xC3A94591, 
-	0xCF043AB3, 0xDAD7F3A3, 0xE70747C4, 0xF3742CA2, 
-	0x00000000, 0x0C8BD35E, 0x18F8B83C, 0x25280C5D, 
-	0x30FBC54D, 0x3C56BA6F, 0x471CECE6, 0x5133CC93, 
-	0x5A827999, 0x62F201AB, 0x6A6D98A3, 0x70E2CBC5, 
-	0x7641AF3C, 0x7A7D055A, 0x7D8A5F3F, 0x7F62368E, 
+/* Array of output data to preload in Q1.15 format */
+static int16_t aOutputDataToPreload[COEFF_VECTOR_A_SIZE] = {
+  0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
 };
 
-/* Array of calculation results in Q1.31 format.
-   Will contain alternatively Sine and Cosine of input angles */
-static int32_t aResults[2 * ARRAY_SIZE];
+/* Array of calculated filtered data in Q1.15 format */
+static int16_t aCalculatedFilteredData[ARRAY_SIZE];
+
+/* Expected number of calculated samples */
+uint16_t ExpectedCalculatedOutputSize = MEMORY_PARAMETER_D2;
+
+/* Status of the FMAC callbacks */
+__IO uint32_t HalfOutputDataReadyCallback = CALLBACK_NOT_CALLED;
+__IO uint32_t OutputDataReadyCallback     = CALLBACK_NOT_CALLED;
+__IO uint32_t ErrorCount                  = 0;
+
+/* Array of reference filtered data for IIR "7 feed-forward taps, 6 feedback coefficients, gain = 1" in Q1.15 format */
+static const int16_t aRefFilteredData[ARRAY_SIZE] = {
+    7140, 13565, 12916, 10624, 12289, 15712, 16843, 15986, 15635, 16225,
+   16376, 15489, 14241, 13174, 12045, 10498,  8621,  6684,  4744,  2697,
+     532, -1645, -3752, -5782, -7735, -9568,-11228,-12685,-13927,-14937,
+  -15692,-16174,-16376,-16301,-15947,-15319,-14427,-13288,-11923,-10352,
+   -8603,- 6707, -4698, -2607,  -470,  1674,  3789,  5839,  7789,  9605,
+   11257, 12716, 13957, 14959, 15704, 16179, 16377, 16295, 15934, 15299,
+   14401, 13257, 11886, 10311,  8559,  6659,  4646,  2554,   418, -1726,
+   -3840, -5888, -7836, -9649,-11296,-12749,-13985,-14981,-15719,-16188,
+  -16380,-16292,-15923,-15281,-14378,-13229,-11852,-10271, -8516, -6615,
+   -4599, -2504,  -367,  1776,  3889,  5935,  7880,  9689, 11332, 12781,
+   14011, 15001, 15733, 16195, 16380, 16285, 15910, 15262, 14352, 13196,
+   11815, 10231,  8471,  6566,  4549,  2453,   315, -1828, -3940, -5984,
+   -7925, -9730,-11370,-12815,-14039,-15021,-15747,-16205,-16383,-16280,
+  -15898,-15244,-14329,-13167,-11779,-10190, -8428, -6520, -4500, -2403,
+    -265,  1878,  3989,  6031,  7970,  9771, 11406, 12845, 14064, 15042,
+   15761, 16210, 16382, 16274, 15885, 15223, 14301, 13135, 11744, 10150,
+    8382,  6471,  4450,  2351,   212, -1930, -4039, -6079, -8016, -9814,
+  -11443,-12877,-14091,-15063,-15776,-16219,-16384,-16268,-15872,-15205,
+  -14278,-13106,-11709,-10110, -8339, -6425, -4401, -2301,  -161,  1981,
+    4088,  6126,  8060,  9854, 11479, 12908, 14117, 15083, 15789, 16225,
+   16383, 16261, 15859, 15185, 14251, 13074, 11673, 10070,  8294,  6376,
+    4350,  2249,   109, -2032, -4139, -6175, -8106, -9896,-11517,-12941,
+  -14143,-15103,-15804,-16234,-16385,-16255,-15847,-15168,-14228,-13043,
+  -11635,-10029, -8251, -6330, -4301, -2199,   -59,  2083,  4189,  6222,
+    8149,  9936, 11553, 12972, 14169, 15122, 15815, 16239, 16385, 16249,
+   15833, 15146, 14200, 13011, 11599,  9987
+};
 
 /**
-  * @brief  Check delta between two values is below threshold
-  * @param  VarA First input variable
-  * @param  VarB Second input variable
-  * @param  MaxError Maximum delta allowed between VarA and VarB
-  * @retval Status
-  *           PASS: Delta is below threshold
-  *           FAIL: Delta is above threshold
+  * @brief FMAC half output data ready callback
+  * @par hfmac: FMAC HAL handle
+  * @retval None
   */
-uint32_t Check_Residual_Error(int32_t VarA, int32_t VarB, uint32_t MaxError) {
-  uint32_t status = PASS;
+void HAL_FMAC_HalfOutputDataReadyCallback(FMAC_HandleTypeDef *hfmac) {
+  HalfOutputDataReadyCallback = CALLBACK_CALLED;
+}
 
-  if ((VarA - VarB) >= 0) {
-    if ((VarA - VarB) > MaxError) {
-      status = FAIL;
-    }
-  } else {
-    if ((VarB - VarA) > MaxError) {
-      status = FAIL;
-    }
-  }
+/**
+  * @brief FMAC output data ready callback
+  * @par hfmac: FMAC HAL handle
+  * @retval None
+  */
+void HAL_FMAC_OutputDataReadyCallback(FMAC_HandleTypeDef *hfmac) {
+  OutputDataReadyCallback = CALLBACK_CALLED;
+}
 
-  return status;
+/**
+  * @brief FMAC error callback
+  * @par hfmac: FMAC HAL handle
+  * @retval None
+  */
+void HAL_FMAC_ErrorCallback(FMAC_HandleTypeDef *hfmac){
+  ErrorCount++;
 }
 /* USER CODE END 0 */
 
@@ -209,6 +241,15 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
+	printf("BOR: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_BORRST));
+	printf("OBLRST: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_OBLRST));
+	printf("Pin: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_PINRST));
+	printf("Software: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_SFTRST));
+	printf("Independent Watchdog: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST));
+	printf("Window Watchdog: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_WWDGRST));
+	printf("Low Power: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_LPWRRST));
+	__HAL_RCC_CLEAR_RESET_FLAGS();
+
   BSP_LED_Init(LED2);
   /* USER CODE END SysInit */
 
@@ -216,145 +257,119 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_USART1_UART_Init();
+  MX_ADC1_Init();
   MX_CORDIC_Init();
   MX_FMAC_Init();
+  MX_RNG_Init();
   /* USER CODE BEGIN 2 */
-	printf("Cordic Test 1, %08X %u\n", SCB->CPUID, SystemCoreClock);
-  /*## Configure the CORDIC peripheral ####################################*/
-  sCordicConfig.Function         = CORDIC_FUNCTION_SINE;     /* sine function */
-  sCordicConfig.Precision        = CORDIC_PRECISION_6CYCLES; /* max precision for q1.31 sine */
-  sCordicConfig.Scale            = CORDIC_SCALE_0;           /* no scale */
-  sCordicConfig.NbWrite          = CORDIC_NBWRITE_1;         /* One input data: angle. Second input data (modulus) is 1 after cordic reset */
-  sCordicConfig.NbRead           = CORDIC_NBREAD_2;          /* Two output data: sine then cosine */
-  sCordicConfig.InSize           = CORDIC_INSIZE_32BITS;     /* q1.31 format for input data */
-  sCordicConfig.OutSize          = CORDIC_OUTSIZE_32BITS;    /* q1.31 format for output data */
-
-  if (HAL_CORDIC_Configure(&hcordic, &sCordicConfig) != HAL_OK) {
-    /* Configuration Error */
-		assert(0);
+/*## Configure the FMAC peripheral ###########################################*/
+	printf("Configure the FMAC\n");
+  sFmacConfig.InputBaseAddress  = INPUT_BUFFER_BASE;
+  sFmacConfig.InputBufferSize   = INPUT_BUFFER_SIZE;
+  sFmacConfig.InputThreshold    = INPUT_THRESHOLD;
+  sFmacConfig.CoeffBaseAddress  = COEFFICIENT_BUFFER_BASE;
+  sFmacConfig.CoeffBufferSize   = COEFFICIENT_BUFFER_SIZE;
+  sFmacConfig.OutputBaseAddress = OUTPUT_BUFFER_BASE;
+  sFmacConfig.OutputBufferSize  = OUTPUT_BUFFER_SIZE;
+  sFmacConfig.OutputThreshold   = OUTPUT_THRESHOLD;
+  sFmacConfig.pCoeffA           = aFilterCoeffA;
+  sFmacConfig.CoeffASize        = COEFF_VECTOR_A_SIZE;
+  sFmacConfig.pCoeffB           = aFilterCoeffB;
+  sFmacConfig.CoeffBSize        = COEFF_VECTOR_B_SIZE;
+  sFmacConfig.Filter            = FMAC_FUNC_IIR_DIRECT_FORM_1;
+  sFmacConfig.InputAccess       = FMAC_BUFFER_ACCESS_POLLING;
+  sFmacConfig.OutputAccess      = FMAC_BUFFER_ACCESS_DMA;
+  sFmacConfig.Clip              = FMAC_CLIP_DISABLED;
+  sFmacConfig.P                 = COEFF_VECTOR_B_SIZE;
+  sFmacConfig.Q                 = COEFF_VECTOR_A_SIZE;
+  sFmacConfig.R                 = GAIN;
+	printf("InputBaseAddress:%02X\n", sFmacConfig.InputBaseAddress);
+	printf("InputBufferSize:%02X\n", sFmacConfig.InputBufferSize);
+	printf("InputThreshold:%08X\n", sFmacConfig.InputThreshold);
+	printf("CoeffBaseAddress:%02X\n", sFmacConfig.CoeffBaseAddress);
+	printf("CoeffBufferSize:%02X\n", sFmacConfig.CoeffBufferSize);
+	printf("OutputBaseAddress:%02X\n", sFmacConfig.OutputBaseAddress);
+	printf("OutputBufferSize:%02X\n", sFmacConfig.OutputBufferSize);
+	printf("OutputThreshold:%08X\n", sFmacConfig.OutputThreshold);
+	printf("pCoeffA:%p\n", sFmacConfig.pCoeffA);
+	printf("CoeffASize:%02X\n", sFmacConfig.CoeffASize);
+	printf("pCoeffB:%p\n", sFmacConfig.pCoeffB);
+	printf("CoeffBSize:%02X\n", sFmacConfig.CoeffBSize);
+	printf("InputAccess:%02X\n", sFmacConfig.InputAccess);
+	printf("OutputAccess:%02X\n", sFmacConfig.OutputAccess);
+	printf("Clip:%08X\n", sFmacConfig.Clip);
+	printf("P:%02X\n", sFmacConfig.P);
+	printf("Q:%02X\n", sFmacConfig.Q);
+	printf("R:%02X\n", sFmacConfig.R);
+	
+	start_ticks = HAL_GetTick();
+	printf("HAL_FMAC_FilterConfig\n");
+  if (HAL_FMAC_FilterConfig(&hfmac, &sFmacConfig) != HAL_OK) {
     Error_Handler();
   }
 
-	/*################### Calculation using CORDIC #######################*/	
-	start_ticks = HAL_GetTick();
-	for (uint32_t i = 0; i < LOOP_NB; i++) {	
-		if (HAL_CORDIC_Calculate_DMA(&hcordic, aAnglesCordic, aResults,
-																 ARRAY_SIZE, CORDIC_DMA_DIR_IN_OUT) != HAL_OK) {
-			/* Processing Error */
-			assert(0);
-			Error_Handler();
-		}
+  /*## Preload the input and output buffers ####################################*/
+	printf("Preload the input and output buffers\n");
+  if (HAL_FMAC_FilterPreload(&hfmac, aInputValues,         INPUT_BUFFER_SIZE,
+                                             aOutputDataToPreload, COEFF_VECTOR_A_SIZE) != HAL_OK) {
+    Error_Handler();
+  }
 
-		/*  Before starting a new process, you need to check the current state of the peripheral;
-				if it’s busy you need to wait for the end of current transfer before starting a new one.
-				For simplicity reasons, this example is just waiting till the end of the
-				process, but application may perform other tasks while transfer operation
-				is ongoing. */
-		while (HAL_CORDIC_GetState(&hcordic) != HAL_CORDIC_STATE_READY) {
-		}
-	}
+  /*## Start calculation of IIR filter in polling/DMA mode #####################*/
+	printf("Start calculation of IIR filter in polling/DMA mode\n");
+  if (HAL_FMAC_FilterStart(&hfmac, aCalculatedFilteredData, &ExpectedCalculatedOutputSize) != HAL_OK) {
+    Error_Handler();
+  }
+
+  /*## Wait for the end of the handling (no new data written) #################*/
+  /*  For simplicity reasons, this example is just waiting till the end of the
+      calculation, but the application may perform other tasks while the operation
+      is ongoing. */
+	printf("Wait for the end of the handling (no new data written)\n");
+  while(HalfOutputDataReadyCallback == CALLBACK_NOT_CALLED) {
+  }
+	printf("HalfOutputDataReadyCallback called\n");	
+  while(OutputDataReadyCallback == CALLBACK_NOT_CALLED) {
+  }
+	printf("OutputDataReadyCallback called\n");	
+
+  /*## Stop the calculation of IIR filter in polling/DMA mode ##################*/
+	printf("Stop the calculation of IIR filter in polling/DMA mode\n");
+  if (HAL_FMAC_FilterStop(&hfmac) != HAL_OK) {
+    Error_Handler();
+  }
+
+  /*## Check the final error status ############################################*/
+	printf("Check the final error status\n");
+  if(ErrorCount != 0) {
+    Error_Handler();
+  }
+
+  /*## Compare FMAC results to the reference values #####################*/
+	printf("Compare FMAC results to the reference values\n");
+  for (uint32_t i = 0; i < ExpectedCalculatedOutputSize; i++) {
+    if (aCalculatedFilteredData[i]  != aRefFilteredData[i]) {
+      /* Processing Error */
+      Error_Handler();
+    }
+  }
 	end_ticks = HAL_GetTick();
 
-   /* Compare calculated results to the reference values */
-   for (uint32_t i = 0; i < ARRAY_SIZE; i++) {		 
-//		 printf("0x%08X, 0x%08X,\n", aResults[2*i], aResults[(2*i) + 1]);
-     if ((Check_Residual_Error(aResults[2*i], aRefSin[i], DELTA) == FAIL) ||
-         (Check_Residual_Error(aResults[(2*i) + 1], aRefCos[i], DELTA) == FAIL)) {
-       Error_Handler();
-     }
-   }
-
-  /* Correct CORDIC output values: Turn LED2 on */
-  BSP_LED_On(LED2);	
-	printf("Correct CORDIC output[%u-%u = %u]\n",
-	start_ticks,
-	end_ticks,
-	end_ticks-start_ticks);
-	        
-	/*################### Calculation using CMSIS DSP library #############*/
-	start_ticks = HAL_GetTick();
-	for (uint32_t i = 0; i < LOOP_NB; i++) {
-		for (uint32_t j = 0; j < ARRAY_SIZE; j++) {
-			/* Calculate sine */
-			aResults[2*j] = arm_sin_q31(aAnglesLib[j]);
-
-			/* Calculate cosine */
-			aResults[(2*j) + 1] = arm_cos_q31(aAnglesLib[j]);
-		}
-	}	
-	end_ticks = HAL_GetTick();
-
-   /* Compare calculated results to the reference values */
-   for (uint32_t i = 0; i < ARRAY_SIZE; i++) {
-//		 printf("0x%08X, 0x%08X,\n", aResults[2*i], aResults[(2*i) + 1]);
-     if ((Check_Residual_Error(aResults[2*i], aRefSin[i], DELTA) == FAIL) ||
-         (Check_Residual_Error(aResults[(2*i) + 1], aRefCos[i], DELTA) == FAIL)) {
-       Error_Handler();
-     }
-   }
-
-  /* Correct output values: Turn LED2 on */
-  BSP_LED_On(LED2);	
-	printf("Correct CMSIS DSP output[%u-%u = %u]\n",
-	start_ticks,
-	end_ticks,
-	end_ticks-start_ticks);	
-	/*################### Calculation using FPU(Single Precision) #############*/
-	 //Generate the radian angle
-	float angle_floats[ARRAY_SIZE];
-	for(uint32_t i=0; i<ARRAY_SIZE; ++i) {
-		angle_floats[i] = (i * PI * 2)/ARRAY_SIZE;
-	}
-	
-	start_ticks = HAL_GetTick();
-	for (uint32_t i = 0; i < LOOP_NB; i++) {
-		for (uint32_t j = 0; j < ARRAY_SIZE; j++) {
-			/* Calculate sine */
-			aResults[2*j] = sinf(angle_floats[j]);
-
-			/* Calculate cosine */
-			aResults[(2*j) + 1] = cosf(angle_floats[j]);
-		}
-	}	
-	end_ticks = HAL_GetTick();
-
-  /* Correct output values: Turn LED2 on */
-  BSP_LED_On(LED2);	
-	printf("Correct FPU Single precision output[%u-%u = %u]\n",
-	start_ticks,
-	end_ticks,
-	end_ticks-start_ticks);		
-	
-	/*################### Calculation using soft float library(Double Precision) #############*/
-	 //Generate the radian angle
-	double angle_doubles[ARRAY_SIZE];
-	for(uint32_t i=0; i<ARRAY_SIZE; ++i) {
-		angle_doubles[i] = (i * PI * 2)/ARRAY_SIZE;
-	}
-	
-	start_ticks = HAL_GetTick();
-	for (uint32_t i = 0; i < LOOP_NB; i++) {
-		for (uint32_t j = 0; j < ARRAY_SIZE; j++) {
-			/* Calculate sine */
-			aResults[2*j] = sin(angle_doubles[j]);
-
-			/* Calculate cosine */
-			aResults[(2*j) + 1] = cos(angle_doubles[j]);
-		}
-	}	
-	end_ticks = HAL_GetTick();
-
-  /* Correct output values: Turn LED2 on */
-  BSP_LED_On(LED2);	
-	printf("Correct Soft float point double precision output[%u-%u = %u]\n",
-	start_ticks,
-	end_ticks,
-	end_ticks-start_ticks);	
+	printf("There is no error in the output values %u[%u-%u]\n", end_ticks-start_ticks, start_ticks, end_ticks);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)g_ADCBuf, ADC_CHAN_NO);		
+	printf("After Start ADC DMA, %u\n", SystemCoreClock);
   while (1) {
+		printf("%u %u %u\n",
+		g_ADCBuf[0], g_ADCBuf[1], g_ADCBuf[2]
+		);
+		
+		BSP_LED_Toggle(LED2);	
+
+		HAL_Delay(4000);		
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -377,15 +392,14 @@ void SystemClock_Config(void)
   HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1_BOOST);
   /** Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV4;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV6;
   RCC_OscInitStruct.PLL.PLLN = 85;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV8;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
@@ -406,8 +420,11 @@ void SystemClock_Config(void)
   }
   /** Initializes the peripherals clocks 
   */
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_RNG
+                              |RCC_PERIPHCLK_ADC12;
   PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
+  PeriphClkInit.RngClockSelection = RCC_RNGCLKSOURCE_PLL;
+  PeriphClkInit.Adc12ClockSelection = RCC_ADC12CLKSOURCE_SYSCLK;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
@@ -425,6 +442,7 @@ void SystemClock_Config(void)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
+	printf("%s\n", __func__);
   /* User can add his own implementation to report the HAL error return state */
   while (1) {
     /* LED2 is blinking */

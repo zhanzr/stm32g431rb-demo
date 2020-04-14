@@ -53,7 +53,7 @@ void HAL_CORDIC_MspInit(CORDIC_HandleTypeDef* cordicHandle)
   
     /* CORDIC DMA Init */
     /* CORDIC_WRITE Init */
-    hdma_cordic_write.Instance = DMA1_Channel1;
+    hdma_cordic_write.Instance = DMA1_Channel4;
     hdma_cordic_write.Init.Request = DMA_REQUEST_CORDIC_WRITE;
     hdma_cordic_write.Init.Direction = DMA_MEMORY_TO_PERIPH;
     hdma_cordic_write.Init.PeriphInc = DMA_PINC_DISABLE;
