@@ -104,17 +104,17 @@ int _write (int fd, const void *buf, size_t count) {
 FMAC_FilterConfigTypeDef sFmacConfig;
 
 /* Array of filter coefficients A (feedback coefficients) in Q1.15 format */
-static int16_t aFilterCoeffA[COEFF_VECTOR_A_SIZE] = {
+static int16_t aFilterCoeffA[] = {
    19448,-29793,  9645, -4884,   671,   -81
 };
 
 /* Array of filter coefficients B (feed-forward taps) in Q1.15 format */
-static int16_t aFilterCoeffB[COEFF_VECTOR_B_SIZE] = {
+static int16_t aFilterCoeffB[] = {
      590,  3540,  8851, 11801,  8851,  3540,   590
 };
 
 /* Array of input values in Q1.15 format */
-static int16_t aInputValues[ARRAY_SIZE] = {
+static int16_t aInputValues[] = {
        0,  5276, -1548, 13844,     7, 17551,  5802, 16142, 14198, 12009,
    21624,  8678, 24576,  8672, 21611, 11990, 14172, 16111,  5765, 17510,
      -37, 13797, -1598,  5225,   -51, -5327,  1498,-13892,   -52,-17592,
@@ -144,7 +144,7 @@ static int16_t aInputValues[ARRAY_SIZE] = {
 };
 
 /* Array of output data to preload in Q1.15 format */
-static int16_t aOutputDataToPreload[COEFF_VECTOR_A_SIZE] = {
+static int16_t aOutputDataToPreload[] = {
   0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
 };
 
@@ -160,7 +160,7 @@ __IO uint32_t OutputDataReadyCallback     = CALLBACK_NOT_CALLED;
 __IO uint32_t ErrorCount                  = 0;
 
 /* Array of reference filtered data for IIR "7 feed-forward taps, 6 feedback coefficients, gain = 1" in Q1.15 format */
-static const int16_t aRefFilteredData[ARRAY_SIZE] = {
+static const int16_t aRefFilteredData[] = {
     7140, 13565, 12916, 10624, 12289, 15712, 16843, 15986, 15635, 16225,
    16376, 15489, 14241, 13174, 12045, 10498,  8621,  6684,  4744,  2697,
      532, -1645, -3752, -5782, -7735, -9568,-11228,-12685,-13927,-14937,
@@ -298,10 +298,10 @@ int main(void)
 	printf("InputAccess:%02X\n", sFmacConfig.InputAccess);
 	printf("OutputAccess:%02X\n", sFmacConfig.OutputAccess);
 	printf("Clip:%08X\n", sFmacConfig.Clip);
-	printf("P:%02X\n", sFmacConfig.P);
-	printf("Q:%02X\n", sFmacConfig.Q);
-	printf("R:%02X\n", sFmacConfig.R);
-	
+	printf("P (vector length, number of filter taps, etc.):%02X\n", sFmacConfig.P);
+	printf("Q (vector length, etc.). Ignored if not needed:%02X\n", sFmacConfig.Q);
+	printf("R (gain, etc.). Ignored if not needed.:%02X\n", sFmacConfig.R);
+
 	start_ticks = HAL_GetTick();
 	printf("HAL_FMAC_FilterConfig\n");
   if (HAL_FMAC_FilterConfig(&hfmac, &sFmacConfig) != HAL_OK) {
@@ -331,7 +331,6 @@ int main(void)
 	printf("HalfOutputDataReadyCallback called\n");	
   while(OutputDataReadyCallback == CALLBACK_NOT_CALLED) {
   }
-	printf("OutputDataReadyCallback called\n");	
 
   /*## Stop the calculation of IIR filter in polling/DMA mode ##################*/
 	printf("Stop the calculation of IIR filter in polling/DMA mode\n");
