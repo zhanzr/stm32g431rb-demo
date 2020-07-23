@@ -56,7 +56,11 @@
 /* USER CODE END ExternalFunctions */
 
 /* USER CODE BEGIN 0 */
+extern DMA_HandleTypeDef hdma_fmac_preload;
 
+extern DMA_HandleTypeDef hdma_fmac_write;
+
+extern DMA_HandleTypeDef hdma_fmac_read;
 /* USER CODE END 0 */
 /**
   * Initializes the Global MSP.

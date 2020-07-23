@@ -36,7 +36,9 @@
 #include <assert.h>
 #include <math.h>
 
-#include <arm_math.h>
+#include "2ToneNoise.h"
+#include "3ToneNoise.h"
+#include "stm32g4xx_nucleo.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -103,118 +105,37 @@ int _write (int fd, const void *buf, size_t count) {
 /* FMAC configuration structure */
 FMAC_FilterConfigTypeDef sFmacConfig;
 
-/* Array of filter coefficients A (feedback coefficients) in Q1.15 format */
-static int16_t aFilterCoeffA[] = {
-   19448,-29793,  9645, -4884,   671,   -81
-};
-
-/* Array of filter coefficients B (feed-forward taps) in Q1.15 format */
-static int16_t aFilterCoeffB[] = {
-     590,  3540,  8851, 11801,  8851,  3540,   590
-};
-
 /* Array of input values in Q1.15 format */
-static int16_t aInputValues[] = {
-       0,  5276, -1548, 13844,     7, 17551,  5802, 16142, 14198, 12009,
-   21624,  8678, 24576,  8672, 21611, 11990, 14172, 16111,  5765, 17510,
-     -37, 13797, -1598,  5225,   -51, -5327,  1498,-13892,   -52,-17592,
-   -5838,-16174,-14223,-12029,-21637, -8685,-24576, -8665,-21597,-11970,
-  -14146,-16080, -5729,-17469,    82,-13749,  1647, -5174,   103,  5378,
-   -1449, 13939,    96, 17632,  5874, 16205, 14249, 12048, 21650,  8691,
-   24575,  8658, 21583, 11950, 14120, 16048,  5692, 17428,  -127, 13701,
-   -1697,  5122,  -154, -5429,  1399,-13987,  -141,-17673, -5910,-16236,
-  -14274,-12068,-21663, -8698,-24575, -8651,-21570,-11930,-14094,-16016,
-   -5655,-17387,   171,-13654,  1747, -5071,   206,  5480, -1349, 14034,
-     185, 17713,  5946, 16267, 14299, 12087, 21676,  8704, 24574,  8643,
-   21556, 11909, 14067, 15984,  5618, 17346,  -216, 13606, -1797,  5020,
-    -257, -5530,  1300,-14081,  -229,-17754, -5982,-16297,-14324,-12106,
-  -21688, -8710,-24574, -8636,-21542,-11889,-14041,-15952, -5581,-17304,
-     261,-13558,  1847, -4969,   309,  5581, -1250, 14128,   273, 17794,
-    6018, 16328, 14349, 12124, 21701,  8715, 24573,  8628, 21527, 11868,
-   14014, 15920,  5544, 17263,  -306, 13510, -1897,  4918,  -360, -5632,
-    1201,-14176,  -317,-17834, -6053,-16358,-14374,-12143,-21713, -8721,
-  -24571, -8620,-21513,-11847,-13988,-15888, -5507,-17221,   352,-13462,
-    1947, -4867,   412,  5683, -1152, 14223,   361, 17874,  6089, 16389,
-   14399, 12162, 21725,  8726, 24570,  8612, 21498, 11826, 13961, 15856,
-    5470, 17180,  -397, 13414, -1997,  4816,  -463, -5734,  1102,-14270,
-    -405,-17914, -6124,-16419,-14423,-12180,-21737, -8732,-24569, -8604,
-  -21484,-11805,-13934,-15823, -5432,-17138,   442,-13366,  2047, -4764,
-     515,  5785, -1053, 14317,   449, 17954,  6160, 16449, 14447, 12198,
-   21749,  8737, 24567,  8596, 21469, 11784
-};
+static int16_t aInputValues[2][ARRAY_SIZE];
 
-/* Array of output data to preload in Q1.15 format */
-static int16_t aOutputDataToPreload[] = {
-  0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
-};
+static int16_t aFilterCoeffB[COEFF_VECTOR_B_SIZE];
 
-/* Array of calculated filtered data in Q1.15 format */
+/* Array of calculated filtered data in Q1.15 format (two parts) */
 static int16_t aCalculatedFilteredData[ARRAY_SIZE];
 
-/* Expected number of calculated samples */
-uint16_t ExpectedCalculatedOutputSize = MEMORY_PARAMETER_D2;
+/* Expected number of calculated samples for the used aCalculatedFilteredDataX */
+uint16_t CurrentInputArraySize;
 
-/* Status of the FMAC callbacks */
-__IO uint32_t HalfOutputDataReadyCallback = CALLBACK_NOT_CALLED;
-__IO uint32_t OutputDataReadyCallback     = CALLBACK_NOT_CALLED;
-__IO uint32_t ErrorCount                  = 0;
+/* Expected number of calculated samples for the used aCalculatedFilteredDataX */
+uint16_t ExpectedCalculatedFilteredDataSize;
 
-/* Array of reference filtered data for IIR "7 feed-forward taps, 6 feedback coefficients, gain = 1" in Q1.15 format */
-static const int16_t aRefFilteredData[] = {
-    7140, 13565, 12916, 10624, 12289, 15712, 16843, 15986, 15635, 16225,
-   16376, 15489, 14241, 13174, 12045, 10498,  8621,  6684,  4744,  2697,
-     532, -1645, -3752, -5782, -7735, -9568,-11228,-12685,-13927,-14937,
-  -15692,-16174,-16376,-16301,-15947,-15319,-14427,-13288,-11923,-10352,
-   -8603,- 6707, -4698, -2607,  -470,  1674,  3789,  5839,  7789,  9605,
-   11257, 12716, 13957, 14959, 15704, 16179, 16377, 16295, 15934, 15299,
-   14401, 13257, 11886, 10311,  8559,  6659,  4646,  2554,   418, -1726,
-   -3840, -5888, -7836, -9649,-11296,-12749,-13985,-14981,-15719,-16188,
-  -16380,-16292,-15923,-15281,-14378,-13229,-11852,-10271, -8516, -6615,
-   -4599, -2504,  -367,  1776,  3889,  5935,  7880,  9689, 11332, 12781,
-   14011, 15001, 15733, 16195, 16380, 16285, 15910, 15262, 14352, 13196,
-   11815, 10231,  8471,  6566,  4549,  2453,   315, -1828, -3940, -5984,
-   -7925, -9730,-11370,-12815,-14039,-15021,-15747,-16205,-16383,-16280,
-  -15898,-15244,-14329,-13167,-11779,-10190, -8428, -6520, -4500, -2403,
-    -265,  1878,  3989,  6031,  7970,  9771, 11406, 12845, 14064, 15042,
-   15761, 16210, 16382, 16274, 15885, 15223, 14301, 13135, 11744, 10150,
-    8382,  6471,  4450,  2351,   212, -1930, -4039, -6079, -8016, -9814,
-  -11443,-12877,-14091,-15063,-15776,-16219,-16384,-16268,-15872,-15205,
-  -14278,-13106,-11709,-10110, -8339, -6425, -4401, -2301,  -161,  1981,
-    4088,  6126,  8060,  9854, 11479, 12908, 14117, 15083, 15789, 16225,
-   16383, 16261, 15859, 15185, 14251, 13074, 11673, 10070,  8294,  6376,
-    4350,  2249,   109, -2032, -4139, -6175, -8106, -9896,-11517,-12941,
-  -14143,-15103,-15804,-16234,-16385,-16255,-15847,-15168,-14228,-13043,
-  -11635,-10029, -8251, -6330, -4301, -2199,   -59,  2083,  4189,  6222,
-    8149,  9936, 11553, 12972, 14169, 15122, 15815, 16239, 16385, 16249,
-   15833, 15146, 14200, 13011, 11599,  9987
-};
+/* Status of the calculation */
+__IO uint32_t FilterPreloadCallbackCount   = 0;
+__IO uint32_t HalfGetDataCallbackCount     = 0;
+__IO uint32_t GetDataCallbackCount         = 0;
+__IO uint32_t OutputDataReadyCallbackCount = 0;
+__IO uint32_t ErrorCount                   = 0;
+uint32_t OldValue;
 
-/**
-  * @brief FMAC half output data ready callback
-  * @par hfmac: FMAC HAL handle
-  * @retval None
-  */
-void HAL_FMAC_HalfOutputDataReadyCallback(FMAC_HandleTypeDef *hfmac) {
-  HalfOutputDataReadyCallback = CALLBACK_CALLED;
-}
+/* Frame selelector */
+uint8_t OldFrame = 0;
+uint8_t Frame = 1;
+/* Auxiliary counter */
+uint32_t Index;
 
-/**
-  * @brief FMAC output data ready callback
-  * @par hfmac: FMAC HAL handle
-  * @retval None
-  */
-void HAL_FMAC_OutputDataReadyCallback(FMAC_HandleTypeDef *hfmac) {
-  OutputDataReadyCallback = CALLBACK_CALLED;
-}
-
-/**
-  * @brief FMAC error callback
-  * @par hfmac: FMAC HAL handle
-  * @retval None
-  */
-void HAL_FMAC_ErrorCallback(FMAC_HandleTypeDef *hfmac){
-  ErrorCount++;
-}
+void SystemClock_Config(void);
+static void MX_DMA_Init(void);
+static void MX_FMAC_Init(void);
 /* USER CODE END 0 */
 
 /**
@@ -248,6 +169,9 @@ int main(void)
 	printf("Independent Watchdog: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST));
 	printf("Window Watchdog: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_WWDGRST));
 	printf("Low Power: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_LPWRRST));
+	
+	printf("%u\n", SystemCoreClock);
+
 	__HAL_RCC_CLEAR_RESET_FLAGS();
 
   BSP_LED_Init(LED2);
@@ -263,7 +187,17 @@ int main(void)
   MX_RNG_Init();
   /* USER CODE BEGIN 2 */
 /*## Configure the FMAC peripheral ###########################################*/
-	printf("Configure the FMAC\n");
+	/* Fill first frame with input signal and zero the other frame */
+  for (Index=0; Index<ARRAY_SIZE; Index++) {
+    aInputValues[0][Index] = TwoToneNoise[Index];
+    aInputValues[1][Index] = 0;
+  }
+  /* generate filter coefficents (in this example they are simply read from flash */
+  for (Index=0; Index<COEFF_VECTOR_B_SIZE; Index++) {
+    aFilterCoeffB[Index] = TwoToneFilter[Index];
+  }
+
+  /*## Static FMAC configuration parameters #################################*/
   sFmacConfig.InputBaseAddress  = INPUT_BUFFER_BASE;
   sFmacConfig.InputBufferSize   = INPUT_BUFFER_SIZE;
   sFmacConfig.InputThreshold    = INPUT_THRESHOLD;
@@ -272,89 +206,113 @@ int main(void)
   sFmacConfig.OutputBaseAddress = OUTPUT_BUFFER_BASE;
   sFmacConfig.OutputBufferSize  = OUTPUT_BUFFER_SIZE;
   sFmacConfig.OutputThreshold   = OUTPUT_THRESHOLD;
-  sFmacConfig.pCoeffA           = aFilterCoeffA;
-  sFmacConfig.CoeffASize        = COEFF_VECTOR_A_SIZE;
-  sFmacConfig.pCoeffB           = aFilterCoeffB;
+  sFmacConfig.pCoeffA           = NULL;
+  sFmacConfig.CoeffASize        = 0;
   sFmacConfig.CoeffBSize        = COEFF_VECTOR_B_SIZE;
-  sFmacConfig.Filter            = FMAC_FUNC_IIR_DIRECT_FORM_1;
-  sFmacConfig.InputAccess       = FMAC_BUFFER_ACCESS_POLLING;
+  sFmacConfig.Filter            = FMAC_FUNC_CONVO_FIR;
+  sFmacConfig.InputAccess       = FMAC_BUFFER_ACCESS_DMA;
   sFmacConfig.OutputAccess      = FMAC_BUFFER_ACCESS_DMA;
+#if defined(CLIP_ENABLED)
+  sFmacConfig.Clip              = FMAC_CLIP_ENABLED;
+#else
   sFmacConfig.Clip              = FMAC_CLIP_DISABLED;
+#endif
   sFmacConfig.P                 = COEFF_VECTOR_B_SIZE;
-  sFmacConfig.Q                 = COEFF_VECTOR_A_SIZE;
+  sFmacConfig.Q                 = FILTER_PARAM_Q_NOT_USED;
   sFmacConfig.R                 = GAIN;
-	printf("InputBaseAddress:%02X\n", sFmacConfig.InputBaseAddress);
-	printf("InputBufferSize:%02X\n", sFmacConfig.InputBufferSize);
-	printf("InputThreshold:%08X\n", sFmacConfig.InputThreshold);
-	printf("CoeffBaseAddress:%02X\n", sFmacConfig.CoeffBaseAddress);
-	printf("CoeffBufferSize:%02X\n", sFmacConfig.CoeffBufferSize);
-	printf("OutputBaseAddress:%02X\n", sFmacConfig.OutputBaseAddress);
-	printf("OutputBufferSize:%02X\n", sFmacConfig.OutputBufferSize);
-	printf("OutputThreshold:%08X\n", sFmacConfig.OutputThreshold);
-	printf("pCoeffA:%p\n", sFmacConfig.pCoeffA);
-	printf("CoeffASize:%02X\n", sFmacConfig.CoeffASize);
-	printf("pCoeffB:%p\n", sFmacConfig.pCoeffB);
-	printf("CoeffBSize:%02X\n", sFmacConfig.CoeffBSize);
-	printf("InputAccess:%02X\n", sFmacConfig.InputAccess);
-	printf("OutputAccess:%02X\n", sFmacConfig.OutputAccess);
-	printf("Clip:%08X\n", sFmacConfig.Clip);
-	printf("P (vector length, number of filter taps, etc.):%02X\n", sFmacConfig.P);
-	printf("Q (vector length, etc.). Ignored if not needed:%02X\n", sFmacConfig.Q);
-	printf("R (gain, etc.). Ignored if not needed.:%02X\n", sFmacConfig.R);
-
+	
+/*### Main loop repeats each frame ########################################*/
 	start_ticks = HAL_GetTick();
-	printf("HAL_FMAC_FilterConfig\n");
-  if (HAL_FMAC_FilterConfig(&hfmac, &sFmacConfig) != HAL_OK) {
-    Error_Handler();
-  }
 
-  /*## Preload the input and output buffers ####################################*/
-	printf("Preload the input and output buffers\n");
-  if (HAL_FMAC_FilterPreload(&hfmac, aInputValues,         INPUT_BUFFER_SIZE,
-                                             aOutputDataToPreload, COEFF_VECTOR_A_SIZE) != HAL_OK) {
-    Error_Handler();
-  }
+  /* Repeat until required number of frames have been processed */
+  do {
+    /* Point to filter coefficients for current frame*/
+    sFmacConfig.pCoeffB           = aFilterCoeffB;
+    /* Configure filter and load coefficients by polling */
+    if (HAL_FMAC_FilterConfig(&hfmac, &sFmacConfig) != HAL_OK) {
+      /* Configuration Error */
+      Error_Handler();
+    }
 
-  /*## Start calculation of IIR filter in polling/DMA mode #####################*/
-	printf("Start calculation of IIR filter in polling/DMA mode\n");
-  if (HAL_FMAC_FilterStart(&hfmac, aCalculatedFilteredData, &ExpectedCalculatedOutputSize) != HAL_OK) {
-    Error_Handler();
-  }
+    /* Preload the filter state at end of previous frame */
+    if (HAL_FMAC_FilterPreload_DMA(
+			&hfmac,
+			&aInputValues[Frame][ARRAY_SIZE-COEFF_VECTOR_B_SIZE+1],
+			COEFF_VECTOR_B_SIZE-1, NULL, 0)
+			!= HAL_OK) {
+      /* Configuration Error */
+      Error_Handler();
+    }
+    /* Switch input frames */
+    OldFrame = Frame;
+    Frame = (Frame ? 0 : 1);
 
-  /*## Wait for the end of the handling (no new data written) #################*/
-  /*  For simplicity reasons, this example is just waiting till the end of the
-      calculation, but the application may perform other tasks while the operation
-      is ongoing. */
-	printf("Wait for the end of the handling (no new data written)\n");
-  while(HalfOutputDataReadyCallback == CALLBACK_NOT_CALLED) {
-  }
-	printf("HalfOutputDataReadyCallback called\n");	
-  while(OutputDataReadyCallback == CALLBACK_NOT_CALLED) {
-  }
+    /* Wait for preload to finish */
+    while (HAL_FMAC_GetState(&hfmac) != HAL_FMAC_STATE_READY) {
+			;
+		}
 
-  /*## Stop the calculation of IIR filter in polling/DMA mode ##################*/
-	printf("Stop the calculation of IIR filter in polling/DMA mode\n");
-  if (HAL_FMAC_FilterStop(&hfmac) != HAL_OK) {
-    Error_Handler();
-  }
-
-  /*## Check the final error status ############################################*/
-	printf("Check the final error status\n");
-  if(ErrorCount != 0) {
-    Error_Handler();
-  }
-
-  /*## Compare FMAC results to the reference values #####################*/
-	printf("Compare FMAC results to the reference values\n");
-  for (uint32_t i = 0; i < ExpectedCalculatedOutputSize; i++) {
-    if (aCalculatedFilteredData[i]  != aRefFilteredData[i]) {
+    /* Start calculation of FIR filter in DMA mode */
+    ExpectedCalculatedFilteredDataSize = ARRAY_SIZE;
+    if (HAL_FMAC_FilterStart(&hfmac, aCalculatedFilteredData, &ExpectedCalculatedFilteredDataSize) != HAL_OK) {
       /* Processing Error */
       Error_Handler();
     }
-  }
-	end_ticks = HAL_GetTick();
 
-	printf("There is no error in the output values %u[%u-%u]\n", end_ticks-start_ticks, start_ticks, end_ticks);
+    /*## Append data to start the DMA process after the preloaded data handling ##*/
+    CurrentInputArraySize = ARRAY_SIZE;
+    if (HAL_FMAC_AppendFilterData(&hfmac,
+                                &aInputValues[Frame][0],
+                                &CurrentInputArraySize) != HAL_OK) {
+      ErrorCount++;
+    }
+																
+    /* While processing is going on, fill next frame with input signal */
+    for (Index=0; Index<ARRAY_SIZE; Index++) {
+      aInputValues[OldFrame][Index] = ThreeToneNoise[Index];
+    }
+		
+    /* Update filter coefficients for next frame */
+    /* Normally this would be done by the adaptive algorithm, in this example the */
+    /* coefficients are loaded from flash */
+    for (Index=0; Index<COEFF_VECTOR_B_SIZE; Index++)
+    {
+      aFilterCoeffB[Index] = ThreeToneFilter[Index];
+    }
+    /* Wait for FMAC to finish processing frame */
+    while (OutputDataReadyCallbackCount == OldValue) {
+			;
+		}
+    OldValue = OutputDataReadyCallbackCount;
+
+    /* Stop the calculation of FIR filter in polling/DMA mode */
+    if (HAL_FMAC_FilterStop(&hfmac) != HAL_OK) {
+      /* Processing Error */
+      Error_Handler();
+    }
+		
+		/* Reached the end of processing : Turn LED2 on */
+		BSP_LED_On(LED2);
+
+	#ifdef PRINT_OUTPUT
+		printf("Filtered[%d]\n",Frame);
+		for (Index=0; Index<ARRAY_SIZE; Index++) {
+			printf("%d\n", aCalculatedFilteredData[Index]);
+		}
+	#endif		
+  /* end of loop */
+  } while(OutputDataReadyCallbackCount < DATA_RDY_CALLBACK_COUNT);
+
+  /*## Check the final error status ############################################*/
+	if(ErrorCount != 0) {
+		printf("%d, %u\n", __LINE__, ErrorCount);
+		/* Processing Error */
+		Error_Handler();
+	} else {
+		end_ticks = HAL_GetTick();
+		printf("No error in the process %u[%u-%u]\n",
+				end_ticks-start_ticks, start_ticks, end_ticks);			
+	}	
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -432,6 +390,115 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
+/**
+  * @brief FMAC Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_FMAC_Init(void)
+{
+
+  /* USER CODE BEGIN FMAC_Init 0 */
+
+  /* USER CODE END FMAC_Init 0 */
+
+  /* USER CODE BEGIN FMAC_Init 1 */
+
+  /* USER CODE END FMAC_Init 1 */
+  hfmac.Instance = FMAC;
+  if (HAL_FMAC_Init(&hfmac) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN FMAC_Init 2 */
+
+  /* USER CODE END FMAC_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMAMUX1_CLK_ENABLE();
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Channel1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+  /* DMA1_Channel2_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel2_IRQn);
+  /* DMA1_Channel3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel3_IRQn);
+
+//  /* DMA1_Channel4_IRQn interrupt configuration */
+//  HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0);
+//  HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
+//  /* DMA1_Channel5_IRQn interrupt configuration */
+//  HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 0, 0);
+//  HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
+//  /* DMA1_Channel6_IRQn interrupt configuration */
+//  HAL_NVIC_SetPriority(DMA1_Channel6_IRQn, 0, 0);
+//  HAL_NVIC_EnableIRQ(DMA1_Channel6_IRQn);	
+}
+
+
+/* USER CODE BEGIN 4 */
+/**
+  * @brief FMAC filter preload callback
+  * @par hfmac: FMAC HAL handle
+  * @retval None
+  */
+void HAL_FMAC_FilterPreloadCallback(FMAC_HandleTypeDef *hfmac)
+{
+  FilterPreloadCallbackCount++;;
+}
+
+/**
+  * @brief FMAC half get data callback
+  * @par hfmac: FMAC HAL handle
+  * @retval None
+  */
+void HAL_FMAC_HalfGetDataCallback(FMAC_HandleTypeDef *hfmac)
+{
+  HalfGetDataCallbackCount++;
+}
+
+/**
+  * @brief FMAC get data callback
+  * @par hfmac: FMAC HAL handle
+  * @retval None
+  */
+void HAL_FMAC_GetDataCallback(FMAC_HandleTypeDef *hfmac)
+{
+  GetDataCallbackCount++;
+}
+
+/**
+  * @brief FMAC output data ready callback
+  * @par hfmac: FMAC HAL handle
+  * @retval None
+  */
+void HAL_FMAC_OutputDataReadyCallback(FMAC_HandleTypeDef *hfmac)
+{
+  OutputDataReadyCallbackCount++;
+}
+
+/**
+  * @brief FMAC error callback
+  * @par hfmac: FMAC HAL handle
+  * @retval None
+  */
+void HAL_FMAC_ErrorCallback(FMAC_HandleTypeDef *hfmac)
+{
+  ErrorCount++;
+}
 /* USER CODE END 4 */
 
 /**
