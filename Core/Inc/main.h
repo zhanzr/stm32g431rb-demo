@@ -131,7 +131,7 @@ void Error_Handler(void);
 #define OUTPUT_BUFFER_SIZE      MEMORY_PARAMETER_D2
 
 /* Print results to standard IO */
-#define PRINT_OUTPUT
+//#define PRINT_OUTPUT
 
 /* USER CODE END Private defines */
 

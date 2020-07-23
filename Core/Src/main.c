@@ -36,8 +36,6 @@
 #include <assert.h>
 #include <math.h>
 
-#include "2ToneNoise.h"
-#include "3ToneNoise.h"
 #include "stm32g4xx_nucleo.h"
 /* USER CODE END Includes */
 
@@ -102,40 +100,44 @@ int _write (int fd, const void *buf, size_t count) {
 }
 #endif
 
-/* FMAC configuration structure */
-FMAC_FilterConfigTypeDef sFmacConfig;
-
-/* Array of input values in Q1.15 format */
-static int16_t aInputValues[2][ARRAY_SIZE];
-
-static int16_t aFilterCoeffB[COEFF_VECTOR_B_SIZE];
-
-/* Array of calculated filtered data in Q1.15 format (two parts) */
-static int16_t aCalculatedFilteredData[ARRAY_SIZE];
-
-/* Expected number of calculated samples for the used aCalculatedFilteredDataX */
-uint16_t CurrentInputArraySize;
-
-/* Expected number of calculated samples for the used aCalculatedFilteredDataX */
-uint16_t ExpectedCalculatedFilteredDataSize;
-
-/* Status of the calculation */
-__IO uint32_t FilterPreloadCallbackCount   = 0;
-__IO uint32_t HalfGetDataCallbackCount     = 0;
-__IO uint32_t GetDataCallbackCount         = 0;
-__IO uint32_t OutputDataReadyCallbackCount = 0;
-__IO uint32_t ErrorCount                   = 0;
-uint32_t OldValue;
-
-/* Frame selelector */
-uint8_t OldFrame = 0;
-uint8_t Frame = 1;
-/* Auxiliary counter */
-uint32_t Index;
-
 void SystemClock_Config(void);
 static void MX_DMA_Init(void);
 static void MX_FMAC_Init(void);
+
+struct msg_header {
+	uint32_t type;
+	uint32_t size;
+	uint8_t content[0];
+};
+
+void ranges(char c) {
+	switch(c) {
+	case '0' ... '9':
+	printf("[%c] is a number.\n", c);
+	break;
+
+	case 'a' ... 'z':
+	printf("[%c] is a lowercase letter.\n", c);
+	break;
+
+	case 'A' ... 'Z':
+	printf("[%c] is an uppercase letter.\n", c);
+	break;
+
+	default:
+		printf("[%c] is not a valid character!\n", c);
+		break;
+	}
+}
+
+#define max(a,b) \
+		({ typeof (a) _a = (a); \
+		typeof (b) _b = (b); \
+		_a > _b ? _a : _b; })
+
+struct empty {
+};
+
 /* USER CODE END 0 */
 
 /**
@@ -145,8 +147,7 @@ static void MX_FMAC_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	uint32_t start_ticks;
-	uint32_t end_ticks;
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -170,7 +171,7 @@ int main(void)
 	printf("Window Watchdog: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_WWDGRST));
 	printf("Low Power: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_LPWRRST));
 	
-	printf("%u\n", SystemCoreClock);
+	printf("Clock:%u, ARMCC Ver:%u\n", SystemCoreClock, __ARMCC_VERSION);
 
 	__HAL_RCC_CLEAR_RESET_FLAGS();
 
@@ -186,137 +187,76 @@ int main(void)
   MX_FMAC_Init();
   MX_RNG_Init();
   /* USER CODE BEGIN 2 */
-/*## Configure the FMAC peripheral ###########################################*/
-	/* Fill first frame with input signal and zero the other frame */
-  for (Index=0; Index<ARRAY_SIZE; Index++) {
-    aInputValues[0][Index] = TwoToneNoise[Index];
-    aInputValues[1][Index] = 0;
-  }
-  /* generate filter coefficents (in this example they are simply read from flash */
-  for (Index=0; Index<COEFF_VECTOR_B_SIZE; Index++) {
-    aFilterCoeffB[Index] = TwoToneFilter[Index];
-  }
-
-  /*## Static FMAC configuration parameters #################################*/
-  sFmacConfig.InputBaseAddress  = INPUT_BUFFER_BASE;
-  sFmacConfig.InputBufferSize   = INPUT_BUFFER_SIZE;
-  sFmacConfig.InputThreshold    = INPUT_THRESHOLD;
-  sFmacConfig.CoeffBaseAddress  = COEFFICIENT_BUFFER_BASE;
-  sFmacConfig.CoeffBufferSize   = COEFFICIENT_BUFFER_SIZE;
-  sFmacConfig.OutputBaseAddress = OUTPUT_BUFFER_BASE;
-  sFmacConfig.OutputBufferSize  = OUTPUT_BUFFER_SIZE;
-  sFmacConfig.OutputThreshold   = OUTPUT_THRESHOLD;
-  sFmacConfig.pCoeffA           = NULL;
-  sFmacConfig.CoeffASize        = 0;
-  sFmacConfig.CoeffBSize        = COEFF_VECTOR_B_SIZE;
-  sFmacConfig.Filter            = FMAC_FUNC_CONVO_FIR;
-  sFmacConfig.InputAccess       = FMAC_BUFFER_ACCESS_DMA;
-  sFmacConfig.OutputAccess      = FMAC_BUFFER_ACCESS_DMA;
-#if defined(CLIP_ENABLED)
-  sFmacConfig.Clip              = FMAC_CLIP_ENABLED;
-#else
-  sFmacConfig.Clip              = FMAC_CLIP_DISABLED;
-#endif
-  sFmacConfig.P                 = COEFF_VECTOR_B_SIZE;
-  sFmacConfig.Q                 = FILTER_PARAM_Q_NOT_USED;
-  sFmacConfig.R                 = GAIN;
-	
-/*### Main loop repeats each frame ########################################*/
-	start_ticks = HAL_GetTick();
-
-  /* Repeat until required number of frames have been processed */
-  do {
-    /* Point to filter coefficients for current frame*/
-    sFmacConfig.pCoeffB           = aFilterCoeffB;
-    /* Configure filter and load coefficients by polling */
-    if (HAL_FMAC_FilterConfig(&hfmac, &sFmacConfig) != HAL_OK) {
-      /* Configuration Error */
-      Error_Handler();
-    }
-
-    /* Preload the filter state at end of previous frame */
-    if (HAL_FMAC_FilterPreload_DMA(
-			&hfmac,
-			&aInputValues[Frame][ARRAY_SIZE-COEFF_VECTOR_B_SIZE+1],
-			COEFF_VECTOR_B_SIZE-1, NULL, 0)
-			!= HAL_OK) {
-      /* Configuration Error */
-      Error_Handler();
-    }
-    /* Switch input frames */
-    OldFrame = Frame;
-    Frame = (Frame ? 0 : 1);
-
-    /* Wait for preload to finish */
-    while (HAL_FMAC_GetState(&hfmac) != HAL_FMAC_STATE_READY) {
-			;
-		}
-
-    /* Start calculation of FIR filter in DMA mode */
-    ExpectedCalculatedFilteredDataSize = ARRAY_SIZE;
-    if (HAL_FMAC_FilterStart(&hfmac, aCalculatedFilteredData, &ExpectedCalculatedFilteredDataSize) != HAL_OK) {
-      /* Processing Error */
-      Error_Handler();
-    }
-
-    /*## Append data to start the DMA process after the preloaded data handling ##*/
-    CurrentInputArraySize = ARRAY_SIZE;
-    if (HAL_FMAC_AppendFilterData(&hfmac,
-                                &aInputValues[Frame][0],
-                                &CurrentInputArraySize) != HAL_OK) {
-      ErrorCount++;
-    }
-																
-    /* While processing is going on, fill next frame with input signal */
-    for (Index=0; Index<ARRAY_SIZE; Index++) {
-      aInputValues[OldFrame][Index] = ThreeToneNoise[Index];
-    }
 		
-    /* Update filter coefficients for next frame */
-    /* Normally this would be done by the adaptive algorithm, in this example the */
-    /* coefficients are loaded from flash */
-    for (Index=0; Index<COEFF_VECTOR_B_SIZE; Index++)
-    {
-      aFilterCoeffB[Index] = ThreeToneFilter[Index];
-    }
-    /* Wait for FMAC to finish processing frame */
-    while (OutputDataReadyCallbackCount == OldValue) {
-			;
-		}
-    OldValue = OutputDataReadyCallbackCount;
-
-    /* Stop the calculation of FIR filter in polling/DMA mode */
-    if (HAL_FMAC_FilterStop(&hfmac) != HAL_OK) {
-      /* Processing Error */
-      Error_Handler();
-    }
-		
-		/* Reached the end of processing : Turn LED2 on */
-		BSP_LED_On(LED2);
-
-	#ifdef PRINT_OUTPUT
-		printf("Filtered[%d]\n",Frame);
-		for (Index=0; Index<ARRAY_SIZE; Index++) {
-			printf("%d\n", aCalculatedFilteredData[Index]);
-		}
-	#endif		
-  /* end of loop */
-  } while(OutputDataReadyCallbackCount < DATA_RDY_CALLBACK_COUNT);
-
-  /*## Check the final error status ############################################*/
-	if(ErrorCount != 0) {
-		printf("%d, %u\n", __LINE__, ErrorCount);
-		/* Processing Error */
-		Error_Handler();
-	} else {
-		end_ticks = HAL_GetTick();
-		printf("No error in the process %u[%u-%u]\n",
-				end_ticks-start_ticks, start_ticks, end_ticks);			
-	}	
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+	
+//		void nested_func(void) {
+//		printf("Inside a nested function!\n");
+//		printf("%s\n", __VERSION__);
+//	}
+
+//		printf("Test nested function\n");
+//	nested_func();
+//	printf("\n");
+	
+	// Test zero length of array
+	printf("Test zero length of array\n");
+	{
+		struct msg_header *msg;
+		int size = 128;
+
+		msg = (struct msg_header *) malloc(sizeof (struct msg_header) + size);
+
+		msg->type = 0x01;
+		msg->size = size;
+
+		printf("msg header  is at %p\n", (void *)msg);
+		printf("msg content is at %p\n", (void *)msg->content);
+		free(msg);
+	}
+	printf("\n");
+	
+	// Test case range
+	printf("Test case range\n");
+	{
+		ranges('a');
+		ranges('8');
+	}
+	printf("\n");
+	
+	// Test typeof
+	printf("Test typeof\n");
+	{
+		int x = 1024, y = 4096;
+		char a = 10, b = 20;
+		float j = 1.0, k = 2.0;
+
+		printf("char  max is %d\n", max(a,b));
+		printf("int   max is %d\n", max(x,y));
+		printf("float max is %f\n", max(j,k));
+	}
+	printf("\n");
+
+	// Test empty structure
+	printf("Test empty structure\n");
+	printf("sizeof struct empty is %u\n", sizeof(struct empty));
+	printf("\n");
+
+	// Test binary immediate and ternary operator
+	printf("binary immediate and ternary operator\n");
+	{
+		int a = 10;
+		int x = 0;
+
+		a = x ? : 0b0011;
+
+		printf("a is %d.\n", a);
+	}
+	printf("\n");
+	
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)g_ADCBuf, ADC_CHAN_NO);		
 	printf("After Start ADC DMA, %u\n", SystemCoreClock);
   while (1) {
@@ -326,7 +266,7 @@ int main(void)
 		
 		BSP_LED_Toggle(LED2);	
 
-		HAL_Delay(4000);		
+		HAL_Delay(10000);		
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -457,7 +397,6 @@ static void MX_DMA_Init(void)
   */
 void HAL_FMAC_FilterPreloadCallback(FMAC_HandleTypeDef *hfmac)
 {
-  FilterPreloadCallbackCount++;;
 }
 
 /**
@@ -467,7 +406,6 @@ void HAL_FMAC_FilterPreloadCallback(FMAC_HandleTypeDef *hfmac)
   */
 void HAL_FMAC_HalfGetDataCallback(FMAC_HandleTypeDef *hfmac)
 {
-  HalfGetDataCallbackCount++;
 }
 
 /**
@@ -477,7 +415,6 @@ void HAL_FMAC_HalfGetDataCallback(FMAC_HandleTypeDef *hfmac)
   */
 void HAL_FMAC_GetDataCallback(FMAC_HandleTypeDef *hfmac)
 {
-  GetDataCallbackCount++;
 }
 
 /**
@@ -487,7 +424,6 @@ void HAL_FMAC_GetDataCallback(FMAC_HandleTypeDef *hfmac)
   */
 void HAL_FMAC_OutputDataReadyCallback(FMAC_HandleTypeDef *hfmac)
 {
-  OutputDataReadyCallbackCount++;
 }
 
 /**
@@ -497,7 +433,6 @@ void HAL_FMAC_OutputDataReadyCallback(FMAC_HandleTypeDef *hfmac)
   */
 void HAL_FMAC_ErrorCallback(FMAC_HandleTypeDef *hfmac)
 {
-  ErrorCount++;
 }
 /* USER CODE END 4 */
 
