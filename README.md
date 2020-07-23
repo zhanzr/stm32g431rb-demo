@@ -1,22 +1,6 @@
-GNU Extension test for ARMCC
+CMSIS DSP_Lib example 1
 
-1. nested function
-N/A
+Matrix creating and multiplication
 
-2. zero length of array
-supported(with GNU extension switch ON)
-
-3. case range
-supported(with GNU extension switch ON)
-
-4. typeof
-supported(with GNU extension switch ON)
-
-5. empty structure
-supported(with GNU extension switch ON)
-
-6. binary immediate number
-supported(with GNU extension switch ON)
-
-7. ternary operator simplication
-supported(with GNU extension switch ON)
+and basic math operation:
+Maximum, Minimum, Mean, Standard, Variance

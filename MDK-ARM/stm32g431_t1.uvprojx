@@ -336,7 +336,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>USE_NUCLEO_64,USE_HAL_DRIVER,STM32G431xx</Define>
+              <Define>USE_NUCLEO_64,USE_HAL_DRIVER,STM32G431xx,ARM_MATH_DSP</Define>
               <Undefine></Undefine>
               <IncludePath>../Core/Inc;    ../Drivers/STM32G4xx_HAL_Driver/Inc;    ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy;    ../Drivers/CMSIS/Device/ST/STM32G4xx/Include;    ../Drivers/CMSIS/Include;    G:\Keil_v5\ARM\PACK\Keil\STM32G4xx_DFP\1.1.0\Drivers\BSP\STM32G4xx_Nucleo</IncludePath>
             </VariousControls>

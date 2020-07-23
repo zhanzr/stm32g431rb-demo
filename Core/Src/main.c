@@ -30,18 +30,31 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "stm32g4xx_nucleo.h"
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <math.h>
 
-#include "stm32g4xx_nucleo.h"
+#include <arm_math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+/**
+ * @defgroup CMSIS DSP_Lib example 1
+ * \par CMSIS DSP Software Library Functions Used:
+ * \par
+ * - arm_mat_init_f32()
+ * - arm_mat_mult_f32()
+ * - arm_max_f32()
+ * - arm_min_f32()
+ * - arm_mean_f32()
+ * - arm_std_f32()
+ * - arm_var_f32()
+  */
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -70,7 +83,6 @@ void SystemClock_Config(void);
 /* USER CODE BEGIN 0 */
 
 /* CORDIC configuration structure */
-CORDIC_ConfigTypeDef sCordicConfig;
 
 __IO uint16_t g_ADCBuf[ADC_CHAN_NO];
 
@@ -104,39 +116,68 @@ void SystemClock_Config(void);
 static void MX_DMA_Init(void);
 static void MX_FMAC_Init(void);
 
-struct msg_header {
-	uint32_t type;
-	uint32_t size;
-	uint8_t content[0];
+
+#define USE_STATIC_INIT
+
+ /* ----------------------------------------------------------------------
+** Global defines
+** ------------------------------------------------------------------- */
+
+/* ------------------------------------------------------------------
+* Global defines
+*------------------------------------------------------------------- */
+#define   NUMSTUDENTS  20
+#define     NUMSUBJECTS  4
+#define TEST_LENGTH_SAMPLES   ((NUMSTUDENTS) * (NUMSUBJECTS))
+
+/* ----------------------------------------------------------------------
+** List of Marks scored by 20 students for 4 subjects
+** ------------------------------------------------------------------- */
+const float32_t testMarks_f32[TEST_LENGTH_SAMPLES] = {
+	42.000000,	37.000000,	81.000000,	28.000000,	 
+	83.000000,	72.000000,	36.000000,	38.000000,	 
+	32.000000,	51.000000,	63.000000,	64.000000,	 
+	97.000000,	82.000000,	95.000000,	90.000000,	 
+	66.000000,	51.000000,	54.000000,	42.000000,	 
+	67.000000,	56.000000,	45.000000,	57.000000,	 
+	67.000000,	69.000000,	35.000000,	52.000000,	 
+	29.000000,	81.000000,	58.000000,	47.000000,	 
+	38.000000,	76.000000,	100.000000,	29.000000,	 
+	33.000000,	47.000000,	29.000000,	50.000000,	 
+	34.000000,	41.000000,	61.000000,	46.000000,	 
+	52.000000,	50.000000,	48.000000,	36.000000,	 
+	47.000000,	55.000000,	44.000000,	40.000000,	 
+	100.000000,	94.000000,	84.000000,	37.000000,	 
+	32.000000,	71.000000,	47.000000,	77.000000,	 
+	31.000000,	50.000000,	49.000000,	35.000000,	 
+	63.000000,	67.000000,	40.000000,	31.000000,	 
+	29.000000,	68.000000,	61.000000,	38.000000,	 
+	31.000000,	28.000000,	28.000000,	76.000000,	 
+	55.000000,	33.000000,	29.000000,	39.000000 
 };
 
-void ranges(char c) {
-	switch(c) {
-	case '0' ... '9':
-	printf("[%c] is a number.\n", c);
-	break;
 
-	case 'a' ... 'z':
-	printf("[%c] is a lowercase letter.\n", c);
-	break;
-
-	case 'A' ... 'Z':
-	printf("[%c] is an uppercase letter.\n", c);
-	break;
-
-	default:
-		printf("[%c] is not a valid character!\n", c);
-		break;
-	}
-}
-
-#define max(a,b) \
-		({ typeof (a) _a = (a); \
-		typeof (b) _b = (b); \
-		_a > _b ? _a : _b; })
-
-struct empty {
+/* ----------------------------------------------------------------------
+* Number of subjects X 1
+* ------------------------------------------------------------------- */
+const float32_t testUnity_f32[NUMSUBJECTS] = {
+	1.000,  1.000, 	1.000,  1.000 
 };
+
+
+/* ----------------------------------------------------------------------
+** f32 Output buffer
+** ------------------------------------------------------------------- */
+static float32_t testOutput[TEST_LENGTH_SAMPLES];
+
+/* ------------------------------------------------------------------
+* Global variables
+*------------------------------------------------------------------- */
+
+ uint32_t    numStudents = NUMSTUDENTS;
+ uint32_t    numSubjects = NUMSUBJECTS;
+float32_t    max_marks, min_marks, mean, std, var;
+ uint32_t    student_num;
 
 /* USER CODE END 0 */
 
@@ -192,70 +233,55 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	
-//		void nested_func(void) {
-//		printf("Inside a nested function!\n");
-//		printf("%s\n", __VERSION__);
-//	}
 
-//		printf("Test nested function\n");
-//	nested_func();
-//	printf("\n");
-	
-	// Test zero length of array
-	printf("Test zero length of array\n");
-	{
-		struct msg_header *msg;
-		int size = 128;
+#ifndef  USE_STATIC_INIT
 
-		msg = (struct msg_header *) malloc(sizeof (struct msg_header) + size);
+  arm_matrix_instance_f32 srcA;
+  arm_matrix_instance_f32 srcB;
+  arm_matrix_instance_f32 dstC;
 
-		msg->type = 0x01;
-		msg->size = size;
+  /* Input and output matrices initializations */
+  arm_mat_init_f32(&srcA, numStudents, numSubjects, (float32_t *)testMarks_f32);
+  arm_mat_init_f32(&srcB, numSubjects, 1, (float32_t *)testUnity_f32);
+  arm_mat_init_f32(&dstC, numStudents, 1, testOutput);
 
-		printf("msg header  is at %p\n", (void *)msg);
-		printf("msg content is at %p\n", (void *)msg->content);
-		free(msg);
-	}
-	printf("\n");
-	
-	// Test case range
-	printf("Test case range\n");
-	{
-		ranges('a');
-		ranges('8');
-	}
-	printf("\n");
-	
-	// Test typeof
-	printf("Test typeof\n");
-	{
-		int x = 1024, y = 4096;
-		char a = 10, b = 20;
-		float j = 1.0, k = 2.0;
+#else
 
-		printf("char  max is %d\n", max(a,b));
-		printf("int   max is %d\n", max(x,y));
-		printf("float max is %f\n", max(j,k));
-	}
-	printf("\n");
+  /* Static Initializations of Input and output matrix sizes and array */
+  arm_matrix_instance_f32 srcA = {NUMSTUDENTS, NUMSUBJECTS, (float32_t *)testMarks_f32};
+  arm_matrix_instance_f32 srcB = {NUMSUBJECTS, 1, (float32_t *)testUnity_f32};
+  arm_matrix_instance_f32 dstC = {NUMSTUDENTS, 1, testOutput};
 
-	// Test empty structure
-	printf("Test empty structure\n");
-	printf("sizeof struct empty is %u\n", sizeof(struct empty));
-	printf("\n");
+#endif	
+  /* ----------------------------------------------------------------------
+  *Call the Matrix multiplication process function
+  * ------------------------------------------------------------------- */
+  arm_mat_mult_f32(&srcA, &srcB, &dstC);
 
-	// Test binary immediate and ternary operator
-	printf("binary immediate and ternary operator\n");
-	{
-		int a = 10;
-		int x = 0;
+  /* ----------------------------------------------------------------------
+  ** Call the Max function to calculate max marks among numStudents
+  ** ------------------------------------------------------------------- */
+  arm_max_f32(testOutput, numStudents, &max_marks, &student_num);
 
-		a = x ? : 0b0011;
+  /* ----------------------------------------------------------------------
+  ** Call the Min function to calculate min marks among numStudents
+  ** ------------------------------------------------------------------- */
+  arm_min_f32(testOutput, numStudents, &min_marks, &student_num);
 
-		printf("a is %d.\n", a);
-	}
-	printf("\n");
+  /* ----------------------------------------------------------------------
+  ** Call the Mean function to calculate mean
+  ** ------------------------------------------------------------------- */
+  arm_mean_f32(testOutput, numStudents, &mean);
+
+  /* ----------------------------------------------------------------------
+  ** Call the std function to calculate standard deviation
+  ** ------------------------------------------------------------------- */
+  arm_std_f32(testOutput, numStudents, &std);
+
+  /* ----------------------------------------------------------------------
+  ** Call the var function to calculate variance
+  ** ------------------------------------------------------------------- */
+  arm_var_f32(testOutput, numStudents, &var);
 	
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)g_ADCBuf, ADC_CHAN_NO);		
 	printf("After Start ADC DMA, %u\n", SystemCoreClock);
