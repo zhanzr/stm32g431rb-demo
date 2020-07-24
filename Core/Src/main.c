@@ -54,6 +54,11 @@
  * - arm_mean_f32()
  * - arm_std_f32()
  * - arm_var_f32()
+ *
+ * - arm_cos_f32()
+ * - arm_sin_f32()
+ * - arm_mult_f32()
+ * - arm_add_f32()
   */
 /* USER CODE END PTD */
 
@@ -85,6 +90,8 @@ void SystemClock_Config(void);
 /* CORDIC configuration structure */
 
 __IO uint16_t g_ADCBuf[ADC_CHAN_NO];
+__IO uint32_t g_start_tick;
+__IO uint32_t g_end_tick;
 
 #if defined(__ARMCC_VERSION)
 int stdout_putchar (int ch) {
@@ -116,123 +123,57 @@ void SystemClock_Config(void);
 static void MX_DMA_Init(void);
 static void MX_FMAC_Init(void);
 
+void matrix_basic_calculcation(void) {
+	#define USE_STATIC_INIT
 
-#define USE_STATIC_INIT
+	const uint32_t NUMSTUDENTS = 20;
+	const uint32_t NUMSUBJECTS = 4;
+	const uint32_t TEST_LENGTH_SAMPLES = ((NUMSTUDENTS) * (NUMSUBJECTS));
 
- /* ----------------------------------------------------------------------
-** Global defines
-** ------------------------------------------------------------------- */
-
-/* ------------------------------------------------------------------
-* Global defines
-*------------------------------------------------------------------- */
-#define   NUMSTUDENTS  20
-#define     NUMSUBJECTS  4
-#define TEST_LENGTH_SAMPLES   ((NUMSTUDENTS) * (NUMSUBJECTS))
-
-/* ----------------------------------------------------------------------
-** List of Marks scored by 20 students for 4 subjects
-** ------------------------------------------------------------------- */
-const float32_t testMarks_f32[TEST_LENGTH_SAMPLES] = {
-	42.000000,	37.000000,	81.000000,	28.000000,	 
-	83.000000,	72.000000,	36.000000,	38.000000,	 
-	32.000000,	51.000000,	63.000000,	64.000000,	 
-	97.000000,	82.000000,	95.000000,	90.000000,	 
-	66.000000,	51.000000,	54.000000,	42.000000,	 
-	67.000000,	56.000000,	45.000000,	57.000000,	 
-	67.000000,	69.000000,	35.000000,	52.000000,	 
-	29.000000,	81.000000,	58.000000,	47.000000,	 
-	38.000000,	76.000000,	100.000000,	29.000000,	 
-	33.000000,	47.000000,	29.000000,	50.000000,	 
-	34.000000,	41.000000,	61.000000,	46.000000,	 
-	52.000000,	50.000000,	48.000000,	36.000000,	 
-	47.000000,	55.000000,	44.000000,	40.000000,	 
-	100.000000,	94.000000,	84.000000,	37.000000,	 
-	32.000000,	71.000000,	47.000000,	77.000000,	 
-	31.000000,	50.000000,	49.000000,	35.000000,	 
-	63.000000,	67.000000,	40.000000,	31.000000,	 
-	29.000000,	68.000000,	61.000000,	38.000000,	 
-	31.000000,	28.000000,	28.000000,	76.000000,	 
-	55.000000,	33.000000,	29.000000,	39.000000 
-};
+	/* ----------------------------------------------------------------------
+	** List of Marks scored by 20 students for 4 subjects
+	** ------------------------------------------------------------------- */
+	const float32_t testMarks_f32[TEST_LENGTH_SAMPLES] = {
+		42.000000,	37.000000,	81.000000,	28.000000,	 
+		83.000000,	72.000000,	36.000000,	38.000000,	 
+		32.000000,	51.000000,	63.000000,	64.000000,	 
+		97.000000,	82.000000,	95.000000,	90.000000,	 
+		66.000000,	51.000000,	54.000000,	42.000000,	 
+		67.000000,	56.000000,	45.000000,	57.000000,	 
+		67.000000,	69.000000,	35.000000,	52.000000,	 
+		29.000000,	81.000000,	58.000000,	47.000000,	 
+		38.000000,	76.000000,	100.000000,	29.000000,	 
+		33.000000,	47.000000,	29.000000,	50.000000,	 
+		34.000000,	41.000000,	61.000000,	46.000000,	 
+		52.000000,	50.000000,	48.000000,	36.000000,	 
+		47.000000,	55.000000,	44.000000,	40.000000,	 
+		100.000000,	94.000000,	84.000000,	37.000000,	 
+		32.000000,	71.000000,	47.000000,	77.000000,	 
+		31.000000,	50.000000,	49.000000,	35.000000,	 
+		63.000000,	67.000000,	40.000000,	31.000000,	 
+		29.000000,	68.000000,	61.000000,	38.000000,	 
+		31.000000,	28.000000,	28.000000,	76.000000,	 
+		55.000000,	33.000000,	29.000000,	39.000000 
+	};
 
 
-/* ----------------------------------------------------------------------
-* Number of subjects X 1
-* ------------------------------------------------------------------- */
-const float32_t testUnity_f32[NUMSUBJECTS] = {
-	1.000,  1.000, 	1.000,  1.000 
-};
+	/* ----------------------------------------------------------------------
+	* Number of subjects X 1
+	* ------------------------------------------------------------------- */
+	const float32_t testUnity_f32[NUMSUBJECTS] = {
+		1.000,  1.000, 	1.000,  1.000 
+	};
 
 
-/* ----------------------------------------------------------------------
-** f32 Output buffer
-** ------------------------------------------------------------------- */
-static float32_t testOutput[TEST_LENGTH_SAMPLES];
+	/* ----------------------------------------------------------------------
+	** f32 Output buffer
+	** ------------------------------------------------------------------- */
+	static float32_t testOutput[TEST_LENGTH_SAMPLES];
 
-/* ------------------------------------------------------------------
-* Global variables
-*------------------------------------------------------------------- */
-
- uint32_t    numStudents = NUMSTUDENTS;
- uint32_t    numSubjects = NUMSUBJECTS;
-float32_t    max_marks, min_marks, mean, std, var;
- uint32_t    student_num;
-
-/* USER CODE END 0 */
-
-/**
-  * @brief  The application entry point.
-  * @retval int
-  */
-int main(void)
-{
-  /* USER CODE BEGIN 1 */
-
-  /* USER CODE END 1 */
-
-  /* MCU Configuration--------------------------------------------------------*/
-
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
-
-  /* USER CODE BEGIN Init */
-
-  /* USER CODE END Init */
-
-  /* Configure the system clock */
-  SystemClock_Config();
-
-  /* USER CODE BEGIN SysInit */
-	printf("BOR: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_BORRST));
-	printf("OBLRST: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_OBLRST));
-	printf("Pin: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_PINRST));
-	printf("Software: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_SFTRST));
-	printf("Independent Watchdog: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST));
-	printf("Window Watchdog: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_WWDGRST));
-	printf("Low Power: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_LPWRRST));
-	
-	printf("Clock:%u, ARMCC Ver:%u\n", SystemCoreClock, __ARMCC_VERSION);
-
-	__HAL_RCC_CLEAR_RESET_FLAGS();
-
-  BSP_LED_Init(LED2);
-  /* USER CODE END SysInit */
-
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_DMA_Init();
-  MX_USART1_UART_Init();
-  MX_ADC1_Init();
-  MX_CORDIC_Init();
-  MX_FMAC_Init();
-  MX_RNG_Init();
-  /* USER CODE BEGIN 2 */
-		
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
+	uint32_t    numStudents = NUMSTUDENTS;
+	uint32_t    numSubjects = NUMSUBJECTS;
+	float32_t    max_marks, min_marks, mean, std, var;
+	uint32_t    student_num;
 
 #ifndef  USE_STATIC_INIT
 
@@ -281,14 +222,168 @@ int main(void)
   /* ----------------------------------------------------------------------
   ** Call the var function to calculate variance
   ** ------------------------------------------------------------------- */
-  arm_var_f32(testOutput, numStudents, &var);
+  arm_var_f32(testOutput, numStudents, &var);	
 	
-	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)g_ADCBuf, ADC_CHAN_NO);		
+	return;
+}
+
+void test_sin_cos(void) {
+	const uint32_t MAX_BLOCKSIZE = 50000;
+	const float32_t DELTA = (0.0001f);
+
+	const float32_t testRefOutput_f32 = 1.000000000;
+
+	/* ----------------------------------------------------------------------
+	* Declare Global variables
+	* ------------------------------------------------------------------- */
+	float32_t  testOutput;
+	float32_t  cosOutput;
+	float32_t  sinOutput;
+	float32_t  cosSquareOutput;
+	float32_t  sinSquareOutput;
+
+  float32_t diff;
+
+	g_start_tick = HAL_GetTick();
+	// Calculation by CMSIS DSP
+  for(uint32_t i=0; i< MAX_BLOCKSIZE; i++) {
+		float32_t test_rad = ((float32_t)rand())/(RAND_MAX/2);
+    cosOutput = arm_cos_f32(test_rad);
+    sinOutput = arm_sin_f32(test_rad);
+
+//    arm_mult_f32(&cosOutput, &cosOutput, &cosSquareOutput, 1);
+//    arm_mult_f32(&sinOutput, &sinOutput, &sinSquareOutput, 1);
+
+//    arm_add_f32(&cosSquareOutput, &sinSquareOutput, &testOutput, 1);
+		cosSquareOutput = cosOutput * cosOutput;
+		sinSquareOutput = sinOutput * sinOutput;
+
+		testOutput = cosSquareOutput + sinSquareOutput;
+		
+    /* absolute value of difference between ref and test */
+    diff = fabsf(testRefOutput_f32 - testOutput);
+
+    /* Comparison of sin_cos value with reference */
+    if(diff > DELTA) {
+      printf("CMSIS DSP Failed, %d, %f > %f\n", i, diff, DELTA);
+			printf("rad:%f, sine:%f, sine^2:%f, cosine:%f, cosine^2:%f, res:%f\n", 
+			test_rad, sinOutput, sinSquareOutput, cosOutput, cosSquareOutput, testOutput);
+			return;
+		}
+	}
+	g_end_tick = HAL_GetTick();
+	printf("\n\n");	
+	printf("CMSIS DSP duration, %u - %u = [%u]\n", g_end_tick, g_start_tick, g_end_tick - g_start_tick);
+	printf("\n\n");
+	
+	g_start_tick = HAL_GetTick();
+	// Calculation by libc math 
+  for(uint32_t i=0; i< MAX_BLOCKSIZE; i++) {
+		float32_t test_rad = ((float32_t)rand())/(RAND_MAX/2);
+    cosOutput = cosf(test_rad);
+    sinOutput = sinf(test_rad);
+
+		cosSquareOutput = cosOutput * cosOutput;
+		sinSquareOutput = sinOutput * sinOutput;
+
+		testOutput = cosSquareOutput + sinSquareOutput;
+
+    /* absolute value of difference between ref and test */
+    diff = fabsf(testRefOutput_f32 - testOutput);
+
+    /* Comparison of sin_cos value with reference */
+    if(diff > DELTA) {
+      printf("LibC Failed, %d, %f > %f\n", i, diff, DELTA);
+			printf("rad:%f, sine:%f, sine^2:%f, cosine:%f, cosine^2:%f, res:%f\n", 
+			test_rad, sinOutput, sinSquareOutput, cosOutput, cosSquareOutput, testOutput);
+			return;
+		}
+	}
+	g_end_tick = HAL_GetTick();
+	printf("\n\n");
+	printf("LibC duration, %u - %u = [%u]\n", g_end_tick, g_start_tick, g_end_tick - g_start_tick);
+	printf("\n\n");
+}
+
+/* USER CODE END 0 */
+
+/**
+  * @brief  The application entry point.
+  * @retval int
+  */
+int main(void) {
+  /* USER CODE BEGIN 1 */
+
+  /* USER CODE END 1 */
+
+  /* MCU Configuration--------------------------------------------------------*/
+
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
+
+  /* USER CODE BEGIN Init */
+
+  /* USER CODE END Init */
+
+  /* Configure the system clock */
+  SystemClock_Config();
+
+  /* USER CODE BEGIN SysInit */
+	printf("BOR: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_BORRST));
+	printf("OBLRST: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_OBLRST));
+	printf("Pin: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_PINRST));
+	printf("Software: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_SFTRST));
+	printf("Independent Watchdog: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST));
+	printf("Window Watchdog: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_WWDGRST));
+	printf("Low Power: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_LPWRRST));
+	
+	printf("Clock:%u, ARMCC Ver:%u\n", SystemCoreClock, __ARMCC_VERSION);
+#ifdef __MICROLIB
+	printf("MicroLib\n");
+#else
+	printf("StdandardLib\n");
+#endif
+	
+#if ((defined (__FPU_PRESENT) && (__FPU_PRESENT == 1U)) && \
+     (defined (__FPU_USED   ) && (__FPU_USED    == 1U))     )
+	printf("FPU Enabled\n");
+#else
+	printf("FPU Disabled\n");
+#endif
+	
+	__HAL_RCC_CLEAR_RESET_FLAGS();
+
+  BSP_LED_Init(LED2);
+  /* USER CODE END SysInit */
+
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_DMA_Init();
+  MX_USART1_UART_Init();
+  MX_ADC1_Init();
+  MX_CORDIC_Init();
+  MX_FMAC_Init();
+  MX_RNG_Init();
+  /* USER CODE BEGIN 2 */
+		
+  /* USER CODE END 2 */
+
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
+	matrix_basic_calculcation();
+	
+	test_sin_cos();
+	
+	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)g_ADCBuf, ADC_CHAN_NO);
+	printf("\n\n");	
 	printf("After Start ADC DMA, %u\n", SystemCoreClock);
+	printf("%u %u %u\n",
+	g_ADCBuf[0], g_ADCBuf[1], g_ADCBuf[2]
+	);	
   while (1) {
-		printf("%u %u %u\n",
-		g_ADCBuf[0], g_ADCBuf[1], g_ADCBuf[2]
-		);
+//		printf("%u %u %u\n",
+//		g_ADCBuf[0], g_ADCBuf[1], g_ADCBuf[2]
+//		);
 		
 		BSP_LED_Toggle(LED2);	
 
