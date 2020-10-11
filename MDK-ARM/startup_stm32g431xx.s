@@ -36,21 +36,27 @@
 Stack_Size		EQU     0x2000
 
                 AREA    STACK, NOINIT, READWRITE, ALIGN=3
+                EXPORT  Stack_Mem_label
+                EXPORT  __initial_sp_label
+Stack_Mem_label					
 Stack_Mem       SPACE   Stack_Size
 __initial_sp
-
+__initial_sp_label
 
 ; <h> Heap Configuration
 ;   <o>  Heap Size (in Bytes) <0x0-0xFFFFFFFF:8>
 ; </h>
 
-Heap_Size      EQU     0x200
+Heap_Size      EQU     0x2000
 
                 AREA    HEAP, NOINIT, READWRITE, ALIGN=3
+                EXPORT  __heap_base_label
+                EXPORT  __heap_limit_label
+__heap_base_label					
 __heap_base
 Heap_Mem        SPACE   Heap_Size
 __heap_limit
-
+__heap_limit_label
                 PRESERVE8
                 THUMB
 
@@ -60,7 +66,7 @@ __heap_limit
                 EXPORT  __Vectors
                 EXPORT  __Vectors_End
                 EXPORT  __Vectors_Size
-
+					
 __Vectors       DCD     __initial_sp               ; Top of Stack
                 DCD     Reset_Handler              ; Reset Handler
                 DCD     NMI_Handler                ; NMI Handler

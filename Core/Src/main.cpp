@@ -32,34 +32,27 @@
 /* USER CODE BEGIN Includes */
 #include "stm32g4xx_nucleo.h"
 
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <math.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cassert>
+#include <cmath>
+#include <ctime>
 
-#include <arm_math.h>
+#include <iostream>
+#include <vector>
+#include <string>
+#include <memory>
+#include <ratio>
+#include <chrono>
+
+using namespace std;
+using namespace std::chrono;
+using std::chrono::system_clock;
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-/**
- * @defgroup CMSIS DSP_Lib example 1
- * \par CMSIS DSP Software Library Functions Used:
- * \par
- * - arm_mat_init_f32()
- * - arm_mat_mult_f32()
- * - arm_max_f32()
- * - arm_min_f32()
- * - arm_mean_f32()
- * - arm_std_f32()
- * - arm_var_f32()
- *
- * - arm_cos_f32()
- * - arm_sin_f32()
- * - arm_mult_f32()
- * - arm_add_f32()
-  */
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -86,12 +79,9 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-/* CORDIC configuration structure */
-
-__IO uint16_t g_ADCBuf[ADC_CHAN_NO];
-__IO uint32_t g_start_tick;
-__IO uint32_t g_end_tick;
+volatile uint16_t g_ADCBuf[ADC_CHAN_NO];
+volatile uint32_t g_start_tick;
+volatile uint32_t g_end_tick;
 
 #if defined(__ARMCC_VERSION)
 int stdout_putchar (int ch) {
@@ -120,190 +110,20 @@ int _write (int fd, const void *buf, size_t count) {
 #endif
 
 void SystemClock_Config(void);
-static void MX_DMA_Init(void);
-static void MX_FMAC_Init(void);
+static void MX_DMA_Init_local(void);
+static void MX_FMAC_Init_local(void);
 
-void matrix_basic_calculcation(void) {
-	#define USE_STATIC_INIT
+extern "C" {
+extern void Reset_Handler(void);
 
-	const uint32_t NUMSTUDENTS = 20;
-	const uint32_t NUMSUBJECTS = 4;
-	const uint32_t TEST_LENGTH_SAMPLES = ((NUMSTUDENTS) * (NUMSUBJECTS));
-
-	/* ----------------------------------------------------------------------
-	** List of Marks scored by 20 students for 4 subjects
-	** ------------------------------------------------------------------- */
-	const float32_t testMarks_f32[TEST_LENGTH_SAMPLES] = {
-		42.000000,	37.000000,	81.000000,	28.000000,	 
-		83.000000,	72.000000,	36.000000,	38.000000,	 
-		32.000000,	51.000000,	63.000000,	64.000000,	 
-		97.000000,	82.000000,	95.000000,	90.000000,	 
-		66.000000,	51.000000,	54.000000,	42.000000,	 
-		67.000000,	56.000000,	45.000000,	57.000000,	 
-		67.000000,	69.000000,	35.000000,	52.000000,	 
-		29.000000,	81.000000,	58.000000,	47.000000,	 
-		38.000000,	76.000000,	100.000000,	29.000000,	 
-		33.000000,	47.000000,	29.000000,	50.000000,	 
-		34.000000,	41.000000,	61.000000,	46.000000,	 
-		52.000000,	50.000000,	48.000000,	36.000000,	 
-		47.000000,	55.000000,	44.000000,	40.000000,	 
-		100.000000,	94.000000,	84.000000,	37.000000,	 
-		32.000000,	71.000000,	47.000000,	77.000000,	 
-		31.000000,	50.000000,	49.000000,	35.000000,	 
-		63.000000,	67.000000,	40.000000,	31.000000,	 
-		29.000000,	68.000000,	61.000000,	38.000000,	 
-		31.000000,	28.000000,	28.000000,	76.000000,	 
-		55.000000,	33.000000,	29.000000,	39.000000 
-	};
-
-
-	/* ----------------------------------------------------------------------
-	* Number of subjects X 1
-	* ------------------------------------------------------------------- */
-	const float32_t testUnity_f32[NUMSUBJECTS] = {
-		1.000,  1.000, 	1.000,  1.000 
-	};
-
-
-	/* ----------------------------------------------------------------------
-	** f32 Output buffer
-	** ------------------------------------------------------------------- */
-	static float32_t testOutput[TEST_LENGTH_SAMPLES];
-
-	uint32_t    numStudents = NUMSTUDENTS;
-	uint32_t    numSubjects = NUMSUBJECTS;
-	float32_t    max_marks, min_marks, mean, std, var;
-	uint32_t    student_num;
-
-#ifndef  USE_STATIC_INIT
-
-  arm_matrix_instance_f32 srcA;
-  arm_matrix_instance_f32 srcB;
-  arm_matrix_instance_f32 dstC;
-
-  /* Input and output matrices initializations */
-  arm_mat_init_f32(&srcA, numStudents, numSubjects, (float32_t *)testMarks_f32);
-  arm_mat_init_f32(&srcB, numSubjects, 1, (float32_t *)testUnity_f32);
-  arm_mat_init_f32(&dstC, numStudents, 1, testOutput);
-
-#else
-
-  /* Static Initializations of Input and output matrix sizes and array */
-  arm_matrix_instance_f32 srcA = {NUMSTUDENTS, NUMSUBJECTS, (float32_t *)testMarks_f32};
-  arm_matrix_instance_f32 srcB = {NUMSUBJECTS, 1, (float32_t *)testUnity_f32};
-  arm_matrix_instance_f32 dstC = {NUMSTUDENTS, 1, testOutput};
-
-#endif	
-  /* ----------------------------------------------------------------------
-  *Call the Matrix multiplication process function
-  * ------------------------------------------------------------------- */
-  arm_mat_mult_f32(&srcA, &srcB, &dstC);
-
-  /* ----------------------------------------------------------------------
-  ** Call the Max function to calculate max marks among numStudents
-  ** ------------------------------------------------------------------- */
-  arm_max_f32(testOutput, numStudents, &max_marks, &student_num);
-
-  /* ----------------------------------------------------------------------
-  ** Call the Min function to calculate min marks among numStudents
-  ** ------------------------------------------------------------------- */
-  arm_min_f32(testOutput, numStudents, &min_marks, &student_num);
-
-  /* ----------------------------------------------------------------------
-  ** Call the Mean function to calculate mean
-  ** ------------------------------------------------------------------- */
-  arm_mean_f32(testOutput, numStudents, &mean);
-
-  /* ----------------------------------------------------------------------
-  ** Call the std function to calculate standard deviation
-  ** ------------------------------------------------------------------- */
-  arm_std_f32(testOutput, numStudents, &std);
-
-  /* ----------------------------------------------------------------------
-  ** Call the var function to calculate variance
-  ** ------------------------------------------------------------------- */
-  arm_var_f32(testOutput, numStudents, &var);	
+	extern void __main(void);
 	
-	return;
+extern uint32_t Stack_Mem_label;
+extern uint32_t __initial_sp_label;
+extern uint32_t __heap_base_label;
+extern uint32_t __heap_limit_label;	
 }
 
-void test_sin_cos(void) {
-	const uint32_t MAX_BLOCKSIZE = 50000;
-	const float32_t DELTA = (0.0001f);
-
-	const float32_t testRefOutput_f32 = 1.000000000;
-
-	/* ----------------------------------------------------------------------
-	* Declare Global variables
-	* ------------------------------------------------------------------- */
-	float32_t  testOutput;
-	float32_t  cosOutput;
-	float32_t  sinOutput;
-	float32_t  cosSquareOutput;
-	float32_t  sinSquareOutput;
-
-  float32_t diff;
-
-	g_start_tick = HAL_GetTick();
-	// Calculation by CMSIS DSP
-  for(uint32_t i=0; i< MAX_BLOCKSIZE; i++) {
-		float32_t test_rad = ((float32_t)rand())/(RAND_MAX/2);
-    cosOutput = arm_cos_f32(test_rad);
-    sinOutput = arm_sin_f32(test_rad);
-
-//    arm_mult_f32(&cosOutput, &cosOutput, &cosSquareOutput, 1);
-//    arm_mult_f32(&sinOutput, &sinOutput, &sinSquareOutput, 1);
-
-//    arm_add_f32(&cosSquareOutput, &sinSquareOutput, &testOutput, 1);
-		cosSquareOutput = cosOutput * cosOutput;
-		sinSquareOutput = sinOutput * sinOutput;
-
-		testOutput = cosSquareOutput + sinSquareOutput;
-		
-    /* absolute value of difference between ref and test */
-    diff = fabsf(testRefOutput_f32 - testOutput);
-
-    /* Comparison of sin_cos value with reference */
-    if(diff > DELTA) {
-      printf("CMSIS DSP Failed, %d, %f > %f\n", i, diff, DELTA);
-			printf("rad:%f, sine:%f, sine^2:%f, cosine:%f, cosine^2:%f, res:%f\n", 
-			test_rad, sinOutput, sinSquareOutput, cosOutput, cosSquareOutput, testOutput);
-			return;
-		}
-	}
-	g_end_tick = HAL_GetTick();
-	printf("\n\n");	
-	printf("CMSIS DSP duration, %u - %u = [%u]\n", g_end_tick, g_start_tick, g_end_tick - g_start_tick);
-	printf("\n\n");
-	
-	g_start_tick = HAL_GetTick();
-	// Calculation by libc math 
-  for(uint32_t i=0; i< MAX_BLOCKSIZE; i++) {
-		float32_t test_rad = ((float32_t)rand())/(RAND_MAX/2);
-    cosOutput = cosf(test_rad);
-    sinOutput = sinf(test_rad);
-
-		cosSquareOutput = cosOutput * cosOutput;
-		sinSquareOutput = sinOutput * sinOutput;
-
-		testOutput = cosSquareOutput + sinSquareOutput;
-
-    /* absolute value of difference between ref and test */
-    diff = fabsf(testRefOutput_f32 - testOutput);
-
-    /* Comparison of sin_cos value with reference */
-    if(diff > DELTA) {
-      printf("LibC Failed, %d, %f > %f\n", i, diff, DELTA);
-			printf("rad:%f, sine:%f, sine^2:%f, cosine:%f, cosine^2:%f, res:%f\n", 
-			test_rad, sinOutput, sinSquareOutput, cosOutput, cosSquareOutput, testOutput);
-			return;
-		}
-	}
-	g_end_tick = HAL_GetTick();
-	printf("\n\n");
-	printf("LibC duration, %u - %u = [%u]\n", g_end_tick, g_start_tick, g_end_tick - g_start_tick);
-	printf("\n\n");
-}
 
 /* USER CODE END 0 */
 
@@ -344,6 +164,30 @@ int main(void) {
 	printf("StdandardLib\n");
 #endif
 	
+#ifdef __cplusplus
+	cout << __cplusplus << " " << __VERSION__ << endl;
+	vector<uint8_t> v_U8;
+	cout << sizeof(v_U8) << ' ' << v_U8.capacity() << endl;
+	v_U8.push_back(1);
+	cout << sizeof(v_U8) << ' ' << v_U8.capacity() << endl;
+	v_U8.push_back(1);
+	cout << sizeof(v_U8) << ' ' << v_U8.capacity() << endl;
+	cout << reinterpret_cast<void*>(v_U8.data()) << endl;
+	
+	std::unique_ptr<uint8_t[]> up_U8{new uint8_t[3]};
+	cout << static_cast<void*>(up_U8.get()) << endl;
+	
+	cout << reinterpret_cast<void*>(Reset_Handler) << endl;
+	cout << reinterpret_cast<void*>(__main) << endl;
+
+	cout << reinterpret_cast<void*>(&__heap_base_label) << endl;
+	cout << reinterpret_cast<void*>(&__heap_limit_label) << endl;
+	cout << reinterpret_cast<void*>(&Stack_Mem_label) << endl;
+	cout << reinterpret_cast<void*>(&__initial_sp_label) << endl;
+#else
+	printf("__STDC_VERSION__:%d: ver:%s\n", __STDC_VERSION__, __VERSION__);	
+#endif
+	
 #if ((defined (__FPU_PRESENT) && (__FPU_PRESENT == 1U)) && \
      (defined (__FPU_USED   ) && (__FPU_USED    == 1U))     )
 	printf("FPU Enabled\n");
@@ -358,11 +202,11 @@ int main(void) {
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
+  MX_DMA_Init_local();
   MX_USART1_UART_Init();
   MX_ADC1_Init();
   MX_CORDIC_Init();
-  MX_FMAC_Init();
+  MX_FMAC_Init_local();
   MX_RNG_Init();
   /* USER CODE BEGIN 2 */
 		
@@ -370,21 +214,11 @@ int main(void) {
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	matrix_basic_calculcation();
-	
-	test_sin_cos();
-	
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)g_ADCBuf, ADC_CHAN_NO);
-	printf("\n\n");	
 	printf("After Start ADC DMA, %u\n", SystemCoreClock);
-	printf("%u %u %u\n",
-	g_ADCBuf[0], g_ADCBuf[1], g_ADCBuf[2]
-	);	
+	cout << g_ADCBuf[0] << ' ' << g_ADCBuf[1] << ' ' << g_ADCBuf[2] << endl;
   while (1) {
-//		printf("%u %u %u\n",
-//		g_ADCBuf[0], g_ADCBuf[1], g_ADCBuf[2]
-//		);
-		
+		cout << g_ADCBuf[0] << ' ' << g_ADCBuf[1] << ' ' << g_ADCBuf[2] << endl;
 		BSP_LED_Toggle(LED2);	
 
 		HAL_Delay(10000);		
@@ -456,7 +290,7 @@ void SystemClock_Config(void)
   * @param None
   * @retval None
   */
-static void MX_FMAC_Init(void)
+static void MX_FMAC_Init_local(void)
 {
 
   /* USER CODE BEGIN FMAC_Init 0 */
@@ -480,7 +314,7 @@ static void MX_FMAC_Init(void)
 /**
   * Enable DMA controller clock
   */
-static void MX_DMA_Init(void)
+static void MX_DMA_Init_local(void)
 {
 
   /* DMA controller clock enable */
