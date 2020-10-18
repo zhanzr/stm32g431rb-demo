@@ -394,12 +394,12 @@
     <File>
       <GroupNumber>2</GroupNumber>
       <FileNumber>12</FileNumber>
-      <FileType>5</FileType>
+      <FileType>8</FileType>
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\Core\Inc\stack_heap_conf.h</PathWithFileName>
-      <FilenameWithoutPath>stack_heap_conf.h</FilenameWithoutPath>
+      <PathWithFileName>.\test_decltype.cpp</PathWithFileName>
+      <FilenameWithoutPath>test_decltype.cpp</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>

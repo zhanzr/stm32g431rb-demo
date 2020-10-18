@@ -34,7 +34,6 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <cassert>
 #include <cmath>
 #include <ctime>
 
@@ -44,6 +43,9 @@
 #include <memory>
 #include <ratio>
 #include <chrono>
+#include <utility>
+//#define	NDEBUG
+#include <cassert>
 
 using namespace std;
 using namespace std::chrono;
@@ -114,17 +116,16 @@ static void MX_DMA_Init_local(void);
 static void MX_FMAC_Init_local(void);
 
 extern "C" {
-extern void Reset_Handler(void);
-
-	extern void __main(void);
+	extern void Reset_Handler(void);
+	extern uint32_t Stack_Mem_label;
+	extern uint32_t __initial_sp_label;
+	extern uint32_t __heap_base_label;
+	extern uint32_t __heap_limit_label;
 	
-extern uint32_t Stack_Mem_label;
-extern uint32_t __initial_sp_label;
-extern uint32_t __heap_base_label;
-extern uint32_t __heap_limit_label;	
+	extern uint32_t __Vectors;
+	extern uint32_t __Vectors_End;
 }
-
-
+extern void test_decltype(void);
 /* USER CODE END 0 */
 
 /**
@@ -149,50 +150,48 @@ int main(void) {
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-	printf("BOR: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_BORRST));
-	printf("OBLRST: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_OBLRST));
-	printf("Pin: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_PINRST));
-	printf("Software: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_SFTRST));
-	printf("Independent Watchdog: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST));
-	printf("Window Watchdog: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_WWDGRST));
-	printf("Low Power: %u\n", __HAL_RCC_GET_FLAG(RCC_FLAG_LPWRRST));
+	cout << "BOR:" << __HAL_RCC_GET_FLAG(RCC_FLAG_BORRST) << endl;;
+	cout << "OBLRST:" << __HAL_RCC_GET_FLAG(RCC_FLAG_OBLRST) << endl;;
+	cout << "PinRST:" << __HAL_RCC_GET_FLAG(RCC_FLAG_PINRST) << endl;;
+	cout << "SoftwareRST:" << __HAL_RCC_GET_FLAG(RCC_FLAG_SFTRST) << endl;;
+	cout << "Independent Watchdog:" << __HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST) << endl;;
+	cout << "Window Watchdog:" << __HAL_RCC_GET_FLAG(RCC_FLAG_WWDGRST) << endl;;
+	cout << "Low Power:" << __HAL_RCC_GET_FLAG(RCC_FLAG_LPWRRST) << endl;;
 	
-	printf("Clock:%u, ARMCC Ver:%u\n", SystemCoreClock, __ARMCC_VERSION);
 #ifdef __MICROLIB
-	printf("MicroLib\n");
+	cout << "MicroLib\n");
 #else
-	printf("StdandardLib\n");
+	cout << "StdandardLib" << endl;
 #endif
 	
-#ifdef __cplusplus
-	cout << __cplusplus << " " << __VERSION__ << endl;
+	cout << "cpp std:" << __cplusplus << " compiler ver:" << __VERSION__ << "ARMCC Ver:" << __ARMCC_VERSION << endl;
 	vector<uint8_t> v_U8;
 	cout << sizeof(v_U8) << ' ' << v_U8.capacity() << endl;
 	v_U8.push_back(1);
 	cout << sizeof(v_U8) << ' ' << v_U8.capacity() << endl;
 	v_U8.push_back(1);
 	cout << sizeof(v_U8) << ' ' << v_U8.capacity() << endl;
-	cout << reinterpret_cast<void*>(v_U8.data()) << endl;
+	cout << "v_U8:" << reinterpret_cast<void*>(v_U8.data()) << endl;
 	
 	std::unique_ptr<uint8_t[]> up_U8{new uint8_t[3]};
-	cout << static_cast<void*>(up_U8.get()) << endl;
+	cout << "up_U8:" << static_cast<void*>(up_U8.get()) << endl;
 	
-	cout << reinterpret_cast<void*>(Reset_Handler) << endl;
-	cout << reinterpret_cast<void*>(__main) << endl;
+	cout << "Reset_Handler:" << reinterpret_cast<void*>(Reset_Handler) << endl;
+	cout << "Stack_Mem_label:" << reinterpret_cast<void*>(&__heap_base_label) << endl;
+	cout << "__initial_sp_label:" << reinterpret_cast<void*>(&__heap_limit_label) << endl;
+	cout << "__heap_base_label:" << reinterpret_cast<void*>(&Stack_Mem_label) << endl;
+	cout << "__heap_limit_label:" << reinterpret_cast<void*>(&__initial_sp_label) << endl;
+	
+	cout << "__Vectors:" << reinterpret_cast<void*>(&__Vectors) << endl;
+	cout << "__Vectors_End:" << reinterpret_cast<void*>(&__Vectors_End) << endl;
+	
+	cout << "SystemCoreClock@:" << reinterpret_cast<void*>(&SystemCoreClock) << endl;
 
-	cout << reinterpret_cast<void*>(&__heap_base_label) << endl;
-	cout << reinterpret_cast<void*>(&__heap_limit_label) << endl;
-	cout << reinterpret_cast<void*>(&Stack_Mem_label) << endl;
-	cout << reinterpret_cast<void*>(&__initial_sp_label) << endl;
-#else
-	printf("__STDC_VERSION__:%d: ver:%s\n", __STDC_VERSION__, __VERSION__);	
-#endif
-	
 #if ((defined (__FPU_PRESENT) && (__FPU_PRESENT == 1U)) && \
      (defined (__FPU_USED   ) && (__FPU_USED    == 1U))     )
-	printf("FPU Enabled\n");
+	cout << ("FPU Enabled") << endl;
 #else
-	printf("FPU Disabled\n");
+	cout << ("FPU Disabled") << endl;
 #endif
 	
 	__HAL_RCC_CLEAR_RESET_FLAGS();
@@ -214,14 +213,29 @@ int main(void) {
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+	auto a = 1 + 2.0;
+	auto b = stdout_putchar(1);
+	thread_local auto c = 1.0f + 2;
+	cout << sizeof(a) << ' ' << sizeof(b) << ' ' << sizeof(c) <<endl;
+//	assert(true);
+//	assert_param(false);	
+//	assert(false);
+	static_assert(true, "this is a static assert of true");
+//	static_assert(false, "this is a static assert of false");
+	static_assert(sizeof(void *) == 4, "64-bit code generation is not supported.");
+
+	test_decltype();
+
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)g_ADCBuf, ADC_CHAN_NO);
-	printf("After Start ADC DMA, %u\n", SystemCoreClock);
+	cout << "After Start ADC DMA, SystemCoreClock:" << SystemCoreClock << endl;
 	cout << g_ADCBuf[0] << ' ' << g_ADCBuf[1] << ' ' << g_ADCBuf[2] << endl;
   while (1) {
-		cout << g_ADCBuf[0] << ' ' << g_ADCBuf[1] << ' ' << g_ADCBuf[2] << endl;
+		cout << "DTS:" << g_ADCBuf[0] << ' '
+		<< "VBAT:" << g_ADCBuf[1] << ' '
+		<< "VREF:" << g_ADCBuf[2] << endl;
 		BSP_LED_Toggle(LED2);	
 
-		HAL_Delay(10000);		
+		HAL_Delay(60000);		
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -398,7 +412,7 @@ void HAL_FMAC_ErrorCallback(FMAC_HandleTypeDef *hfmac)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-	printf("%s\n", __func__);
+	cout << __func__ << ' ' << __LINE__ << endl;
   /* User can add his own implementation to report the HAL error return state */
   while (1) {
     /* LED2 is blinking */
@@ -416,11 +430,11 @@ void Error_Handler(void)
   * @param  line: assert_param error line source number
   * @retval None
   */
-void assert_failed(uint8_t *file, uint32_t line)
-{ 
+void assert_failed(uint8_t *file, uint32_t line) {
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
      tex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+	cout << file << ' ' << line << endl;	
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */

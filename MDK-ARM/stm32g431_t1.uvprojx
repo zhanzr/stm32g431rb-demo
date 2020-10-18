@@ -336,7 +336,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>USE_NUCLEO_64,USE_HAL_DRIVER,STM32G431xx,ARM_MATH_DSP</Define>
+              <Define>USE_NUCLEO_64,USE_HAL_DRIVER,STM32G431xx,USE_FULL_ASSERT</Define>
               <Undefine></Undefine>
               <IncludePath>../Core/Inc;    ../Drivers/STM32G4xx_HAL_Driver/Inc;    ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy;    ../Drivers/CMSIS/Device/ST/STM32G4xx/Include;    ../Drivers/CMSIS/Include;    G:\Keil_v5\ARM\PACK\Keil\STM32G4xx_DFP\1.1.0\Drivers\BSP\STM32G4xx_Nucleo</IncludePath>
             </VariousControls>
@@ -443,9 +443,9 @@
               <FilePath>..\Core\Src\adc.cpp</FilePath>
             </File>
             <File>
-              <FileName>stack_heap_conf.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Core\Inc\stack_heap_conf.h</FilePath>
+              <FileName>test_decltype.cpp</FileName>
+              <FileType>8</FileType>
+              <FilePath>.\test_decltype.cpp</FilePath>
             </File>
           </Files>
         </Group>

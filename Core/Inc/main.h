@@ -132,7 +132,6 @@ void Error_Handler(void);
 
 /* Print results to standard IO */
 //#define PRINT_OUTPUT
-
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
