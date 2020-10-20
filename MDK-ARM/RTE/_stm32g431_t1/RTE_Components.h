@@ -16,6 +16,8 @@
  */
 #define CMSIS_device_header "stm32g4xx.h"
 
+/*  Arm-Packs::Test:Unity:Classic:2.5.0 */
+#define RTE_Test_Unity_Classic        /* Unity Classic */
 /*  Keil.ARM Compiler::Compiler:I/O:STDERR:ITM:1.2.0 */
 #define RTE_Compiler_IO_STDERR          /* Compiler I/O: STDERR */
           #define RTE_Compiler_IO_STDERR_ITM      /* Compiler I/O: STDERR ITM */

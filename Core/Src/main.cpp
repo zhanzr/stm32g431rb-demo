@@ -1,23 +1,5 @@
 /* USER CODE BEGIN Header */
-/**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * <h2><center>&copy; Copyright (c) 2019 STMicroelectronics.
-  * All rights reserved.</center></h2>
-  *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
-  *
-  ******************************************************************************
-  */
 /* USER CODE END Header */
-
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "adc.h"
@@ -111,7 +93,6 @@ int _write (int fd, const void *buf, size_t count) {
 }
 #endif
 
-void SystemClock_Config(void);
 static void MX_DMA_Init_local(void);
 static void MX_FMAC_Init_local(void);
 
@@ -125,7 +106,10 @@ extern "C" {
 	extern uint32_t __Vectors;
 	extern uint32_t __Vectors_End;
 }
-extern void test_decltype(void);
+extern auto test_decltype(void) -> float;
+extern void test_default_1(void);
+extern void test_default_2(void);
+	
 /* USER CODE END 0 */
 
 /**
@@ -157,7 +141,7 @@ int main(void) {
 	cout << "Independent Watchdog:" << __HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST) << endl;;
 	cout << "Window Watchdog:" << __HAL_RCC_GET_FLAG(RCC_FLAG_WWDGRST) << endl;;
 	cout << "Low Power:" << __HAL_RCC_GET_FLAG(RCC_FLAG_LPWRRST) << endl;;
-	
+	cout << "BSP Ver:" << std::hex << BSP_GetVersion() << std::dec << endl;
 #ifdef __MICROLIB
 	cout << "MicroLib\n");
 #else
@@ -166,8 +150,6 @@ int main(void) {
 	
 	cout << "cpp std:" << __cplusplus << " compiler ver:" << __VERSION__ << "ARMCC Ver:" << __ARMCC_VERSION << endl;
 	vector<uint8_t> v_U8;
-	cout << sizeof(v_U8) << ' ' << v_U8.capacity() << endl;
-	v_U8.push_back(1);
 	cout << sizeof(v_U8) << ' ' << v_U8.capacity() << endl;
 	v_U8.push_back(1);
 	cout << sizeof(v_U8) << ' ' << v_U8.capacity() << endl;
@@ -213,10 +195,7 @@ int main(void) {
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	auto a = 1 + 2.0;
-	auto b = stdout_putchar(1);
-	thread_local auto c = 1.0f + 2;
-	cout << sizeof(a) << ' ' << sizeof(b) << ' ' << sizeof(c) <<endl;
+
 //	assert(true);
 //	assert_param(false);	
 //	assert(false);
@@ -224,8 +203,10 @@ int main(void) {
 //	static_assert(false, "this is a static assert of false");
 	static_assert(sizeof(void *) == 4, "64-bit code generation is not supported.");
 
-	test_decltype();
-
+	cout << test_decltype() << endl;;
+	test_default_1();
+	test_default_2();
+	
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)g_ADCBuf, ADC_CHAN_NO);
 	cout << "After Start ADC DMA, SystemCoreClock:" << SystemCoreClock << endl;
 	cout << g_ADCBuf[0] << ' ' << g_ADCBuf[1] << ' ' << g_ADCBuf[2] << endl;
@@ -247,8 +228,7 @@ int main(void) {
   * @brief System Clock Configuration
   * @retval None
   */
-void SystemClock_Config(void)
-{
+void SystemClock_Config(void) {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
   RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
@@ -267,8 +247,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV8;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
     Error_Handler();
   }
   /** Initializes the CPU, AHB and APB busses clocks 
@@ -280,8 +259,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_8) != HAL_OK)
-  {
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_8) != HAL_OK) {
     Error_Handler();
   }
   /** Initializes the peripherals clocks 
@@ -291,8 +269,7 @@ void SystemClock_Config(void)
   PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
   PeriphClkInit.RngClockSelection = RCC_RNGCLKSOURCE_PLL;
   PeriphClkInit.Adc12ClockSelection = RCC_ADC12CLKSOURCE_SYSCLK;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-  {
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
     Error_Handler();
   }
 }
@@ -304,9 +281,7 @@ void SystemClock_Config(void)
   * @param None
   * @retval None
   */
-static void MX_FMAC_Init_local(void)
-{
-
+static void MX_FMAC_Init_local(void) {
   /* USER CODE BEGIN FMAC_Init 0 */
 
   /* USER CODE END FMAC_Init 0 */
@@ -315,22 +290,18 @@ static void MX_FMAC_Init_local(void)
 
   /* USER CODE END FMAC_Init 1 */
   hfmac.Instance = FMAC;
-  if (HAL_FMAC_Init(&hfmac) != HAL_OK)
-  {
+  if (HAL_FMAC_Init(&hfmac) != HAL_OK) {
     Error_Handler();
   }
   /* USER CODE BEGIN FMAC_Init 2 */
 
   /* USER CODE END FMAC_Init 2 */
-
 }
 
 /**
   * Enable DMA controller clock
   */
-static void MX_DMA_Init_local(void)
-{
-
+static void MX_DMA_Init_local(void) {
   /* DMA controller clock enable */
   __HAL_RCC_DMAMUX1_CLK_ENABLE();
   __HAL_RCC_DMA1_CLK_ENABLE();
@@ -364,8 +335,7 @@ static void MX_DMA_Init_local(void)
   * @par hfmac: FMAC HAL handle
   * @retval None
   */
-void HAL_FMAC_FilterPreloadCallback(FMAC_HandleTypeDef *hfmac)
-{
+void HAL_FMAC_FilterPreloadCallback(FMAC_HandleTypeDef *hfmac) {
 }
 
 /**
@@ -373,8 +343,7 @@ void HAL_FMAC_FilterPreloadCallback(FMAC_HandleTypeDef *hfmac)
   * @par hfmac: FMAC HAL handle
   * @retval None
   */
-void HAL_FMAC_HalfGetDataCallback(FMAC_HandleTypeDef *hfmac)
-{
+void HAL_FMAC_HalfGetDataCallback(FMAC_HandleTypeDef *hfmac) {
 }
 
 /**
@@ -382,8 +351,7 @@ void HAL_FMAC_HalfGetDataCallback(FMAC_HandleTypeDef *hfmac)
   * @par hfmac: FMAC HAL handle
   * @retval None
   */
-void HAL_FMAC_GetDataCallback(FMAC_HandleTypeDef *hfmac)
-{
+void HAL_FMAC_GetDataCallback(FMAC_HandleTypeDef *hfmac) {
 }
 
 /**
@@ -391,8 +359,7 @@ void HAL_FMAC_GetDataCallback(FMAC_HandleTypeDef *hfmac)
   * @par hfmac: FMAC HAL handle
   * @retval None
   */
-void HAL_FMAC_OutputDataReadyCallback(FMAC_HandleTypeDef *hfmac)
-{
+void HAL_FMAC_OutputDataReadyCallback(FMAC_HandleTypeDef *hfmac) {
 }
 
 /**
@@ -400,8 +367,7 @@ void HAL_FMAC_OutputDataReadyCallback(FMAC_HandleTypeDef *hfmac)
   * @par hfmac: FMAC HAL handle
   * @retval None
   */
-void HAL_FMAC_ErrorCallback(FMAC_HandleTypeDef *hfmac)
-{
+void HAL_FMAC_ErrorCallback(FMAC_HandleTypeDef *hfmac) {
 }
 /* USER CODE END 4 */
 
@@ -409,8 +375,7 @@ void HAL_FMAC_ErrorCallback(FMAC_HandleTypeDef *hfmac)
   * @brief  This function is executed in case of error occurrence.
   * @retval None
   */
-void Error_Handler(void)
-{
+void Error_Handler(void) {
   /* USER CODE BEGIN Error_Handler_Debug */
 	cout << __func__ << ' ' << __LINE__ << endl;
   /* User can add his own implementation to report the HAL error return state */
@@ -438,5 +403,3 @@ void assert_failed(uint8_t *file, uint32_t line) {
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
