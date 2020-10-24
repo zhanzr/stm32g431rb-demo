@@ -110,6 +110,13 @@ extern auto test_decltype(void) -> float;
 extern void test_default_1(void);
 extern void test_default_2(void);
 	
+extern auto test_extent(void) -> void;
+
+extern auto test_ref0(void) -> void;
+extern auto test_ref1(void) -> void;
+extern auto test_ref2(void) -> void;
+extern auto test_ref3(void) -> void;
+
 /* USER CODE END 0 */
 
 /**
@@ -206,6 +213,12 @@ int main(void) {
 	cout << test_decltype() << endl;;
 	test_default_1();
 	test_default_2();
+	test_extent();
+	
+//	test_ref0();
+//	test_ref1();
+//	test_ref2();
+	test_ref3();
 	
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)g_ADCBuf, ADC_CHAN_NO);
 	cout << "After Start ADC DMA, SystemCoreClock:" << SystemCoreClock << endl;
