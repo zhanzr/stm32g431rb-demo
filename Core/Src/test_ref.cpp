@@ -45,7 +45,7 @@ void f(int&& x) {
  
 auto test_ref2(void) -> void {
     int i = 1;
-    const int ci = 2;
+    constexpr const int ci = 2;
     f(i);  // calls f(int&)
     f(ci); // calls f(const int&)
     f(3);  // calls f(int&&)

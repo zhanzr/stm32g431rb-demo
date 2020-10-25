@@ -29,6 +29,9 @@
 //#define	NDEBUG
 #include <cassert>
 
+#include "unity.h"
+#include "DumbExample.h"
+
 using namespace std;
 using namespace std::chrono;
 using std::chrono::system_clock;
@@ -84,6 +87,7 @@ void ttywrch (int ch) {
 	uint8_t c = ch;
 	HAL_UART_Transmit(&huart1, &c, 1, 1);	
 }
+
 #else
 int _write (int fd, const void *buf, size_t count) {
 	for(uint32_t i=0; i<count; ++i) {
@@ -117,6 +121,37 @@ extern auto test_ref1(void) -> void;
 extern auto test_ref2(void) -> void;
 extern auto test_ref3(void) -> void;
 
+extern auto test_hash_0(void) -> void;
+
+auto test_AverageThreeBytes_should_AverageMidRangeValues(void) -> void {
+	TEST_ASSERT_EQUAL_HEX8(40, AverageThreeBytes(30, 40, 50));
+	TEST_ASSERT_EQUAL_HEX8(40, AverageThreeBytes(10, 70, 40));
+	TEST_ASSERT_EQUAL_HEX8(33, AverageThreeBytes(33, 33, 33));
+}
+
+auto test_AverageThreeBytes_should_AverageHighValues(void) -> void {
+	TEST_ASSERT_EQUAL_HEX8(80, AverageThreeBytes(70, 80, 90));
+	TEST_ASSERT_EQUAL_HEX8(127, AverageThreeBytes(127, 127, 127));
+	TEST_ASSERT_EQUAL_HEX8(84, AverageThreeBytes(0, 126, 126));
+	
+	TEST_ASSERT(reinterpret_cast<size_t>(&__initial_sp_label) > reinterpret_cast<size_t>(&Stack_Mem_label));
+	TEST_ASSERT(reinterpret_cast<size_t>(&__heap_limit_label) > reinterpret_cast<size_t>(&__heap_base_label));
+	TEST_ASSERT(reinterpret_cast<size_t>(&__Vectors_End) > reinterpret_cast<size_t>(&__Vectors));
+	TEST_ASSERT(SystemCoreClock >= 1000000);
+	TEST_ASSERT(hfmac.Instance == FMAC);	
+}
+
+auto test_string_hash(void) -> void {
+	std::string s = "Stand back! I've got jimmies!";
+  auto hash_v = std::hash<std::string>{}(s);	
+	TEST_ASSERT(893591862 == hash_v);
+
+	s = "Another String";
+	hash_v = std::hash<std::string>{}(s);	
+	TEST_ASSERT_MESSAGE(1525659783 == hash_v, "hash compare failed");
+
+	TEST_ASSERT_EQUAL_INT(1525659784, hash_v);
+}
 /* USER CODE END 0 */
 
 /**
@@ -155,7 +190,9 @@ int main(void) {
 	cout << "StdandardLib" << endl;
 #endif
 	
-	cout << "cpp std:" << __cplusplus << " compiler ver:" << __VERSION__ << "ARMCC Ver:" << __ARMCC_VERSION << endl;
+	cout << __DATE__ << ' ' << __TIME__ << ' ' <<
+	"cpp std:" << __cplusplus << " compiler ver:" <<
+	__VERSION__ << "ARMCC Ver:" << __ARMCC_VERSION << endl;
 	vector<uint8_t> v_U8;
 	cout << sizeof(v_U8) << ' ' << v_U8.capacity() << endl;
 	v_U8.push_back(1);
@@ -166,10 +203,10 @@ int main(void) {
 	cout << "up_U8:" << static_cast<void*>(up_U8.get()) << endl;
 	
 	cout << "Reset_Handler:" << reinterpret_cast<void*>(Reset_Handler) << endl;
-	cout << "Stack_Mem_label:" << reinterpret_cast<void*>(&__heap_base_label) << endl;
-	cout << "__initial_sp_label:" << reinterpret_cast<void*>(&__heap_limit_label) << endl;
-	cout << "__heap_base_label:" << reinterpret_cast<void*>(&Stack_Mem_label) << endl;
-	cout << "__heap_limit_label:" << reinterpret_cast<void*>(&__initial_sp_label) << endl;
+	cout << "__heap_base_label:" << reinterpret_cast<void*>(&__heap_base_label) << endl;
+	cout << "__heap_limit_label:" << reinterpret_cast<void*>(&__heap_limit_label) << endl;
+	cout << "Stack_Mem_label:" << reinterpret_cast<void*>(&Stack_Mem_label) << endl;
+	cout << "__initial_sp_label:" << reinterpret_cast<void*>(&__initial_sp_label) << endl;
 	
 	cout << "__Vectors:" << reinterpret_cast<void*>(&__Vectors) << endl;
 	cout << "__Vectors_End:" << reinterpret_cast<void*>(&__Vectors_End) << endl;
@@ -182,7 +219,12 @@ int main(void) {
 #else
 	cout << ("FPU Disabled") << endl;
 #endif
-	
+#ifdef _LIBCPP_HAS_NO_BUILTIN_OPERATOR_NEW_DELETE
+	cout << "_LIBCPP_HAS_NO_BUILTIN_OPERATOR_NEW_DELETE" << endl;
+#else
+	cout << "has builtin operator new delete" << endl;
+#endif
+
 	__HAL_RCC_CLEAR_RESET_FLAGS();
 
   BSP_LED_Init(LED2);
@@ -197,7 +239,7 @@ int main(void) {
   MX_FMAC_Init_local();
   MX_RNG_Init();
   /* USER CODE BEGIN 2 */
-		
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -219,6 +261,14 @@ int main(void) {
 //	test_ref1();
 //	test_ref2();
 	test_ref3();
+	
+	test_hash_0();
+
+	UNITY_BEGIN();
+	RUN_TEST(test_AverageThreeBytes_should_AverageMidRangeValues);
+	RUN_TEST(test_AverageThreeBytes_should_AverageHighValues);
+	RUN_TEST(test_string_hash);
+	UNITY_END();
 	
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)g_ADCBuf, ADC_CHAN_NO);
 	cout << "After Start ADC DMA, SystemCoreClock:" << SystemCoreClock << endl;
@@ -307,7 +357,6 @@ static void MX_FMAC_Init_local(void) {
     Error_Handler();
   }
   /* USER CODE BEGIN FMAC_Init 2 */
-
   /* USER CODE END FMAC_Init 2 */
 }
 

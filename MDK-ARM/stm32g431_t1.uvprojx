@@ -439,34 +439,44 @@
               <FilePath>..\Core\Src\adc.cpp</FilePath>
             </File>
             <File>
-              <FileName>test_decltype.cpp</FileName>
-              <FileType>8</FileType>
-              <FilePath>.\test_decltype.cpp</FilePath>
-            </File>
-            <File>
               <FileName>stm32g4xx_it.cpp</FileName>
               <FileType>8</FileType>
               <FilePath>..\Core\Src\stm32g4xx_it.cpp</FilePath>
             </File>
             <File>
+              <FileName>DumbExample.cpp</FileName>
+              <FileType>8</FileType>
+              <FilePath>..\Core\Src\DumbExample.cpp</FilePath>
+            </File>
+            <File>
+              <FileName>test_decltype.cpp</FileName>
+              <FileType>8</FileType>
+              <FilePath>..\Core\Src\test_decltype.cpp</FilePath>
+            </File>
+            <File>
               <FileName>test_default_delete.cpp</FileName>
               <FileType>8</FileType>
-              <FilePath>.\test_default_delete.cpp</FilePath>
+              <FilePath>..\Core\Src\test_default_delete.cpp</FilePath>
             </File>
             <File>
               <FileName>test_extent.cpp</FileName>
               <FileType>8</FileType>
-              <FilePath>.\test_extent.cpp</FilePath>
+              <FilePath>..\Core\Src\test_extent.cpp</FilePath>
+            </File>
+            <File>
+              <FileName>test_hash.cpp</FileName>
+              <FileType>8</FileType>
+              <FilePath>..\Core\Src\test_hash.cpp</FilePath>
+            </File>
+            <File>
+              <FileName>test_ref.cpp</FileName>
+              <FileType>8</FileType>
+              <FilePath>..\Core\Src\test_ref.cpp</FilePath>
             </File>
             <File>
               <FileName>test_std_size.cpp</FileName>
               <FileType>8</FileType>
-              <FilePath>.\test_std_size.cpp</FilePath>
-            </File>
-            <File>
-              <FileName>tet_ref.cpp</FileName>
-              <FileType>8</FileType>
-              <FilePath>.\tet_ref.cpp</FilePath>
+              <FilePath>..\Core\Src\test_std_size.cpp</FilePath>
             </File>
           </Files>
         </Group>
