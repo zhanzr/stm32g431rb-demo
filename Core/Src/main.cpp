@@ -152,13 +152,26 @@ auto test_string_hash(void) -> void {
 
 	TEST_ASSERT_EQUAL_INT(1525659784, hash_v);
 }
+
+auto test_heap_stats(void) -> void {
+	__heapstats((__heapprt)fprintf,stderr);
+	auto ip = malloc(20);
+	free(ip);
+	__heapstats((__heapprt)fprintf,stderr);
+
+	std::unique_ptr<uint8_t[]> up_U8{new uint8_t[3]};
+
+	__heapstats((__heapprt)fprintf,stderr);
+
+	TEST_ASSERT(nullptr != ip);		
+}
 /* USER CODE END 0 */
 
 /**
   * @brief  The application entry point.
   * @retval int
   */
-int main(void) {
+[[ noreturn ]] int main(void) {
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -192,7 +205,8 @@ int main(void) {
 	
 	cout << __DATE__ << ' ' << __TIME__ << ' ' <<
 	"cpp std:" << __cplusplus << " compiler ver:" <<
-	__VERSION__ << "ARMCC Ver:" << __ARMCC_VERSION << endl;
+	__VERSION__ << "ARMCC Ver:" << __ARMCC_VERSION << 
+	' ' << __FILE_NAME__  << endl;
 	vector<uint8_t> v_U8;
 	cout << sizeof(v_U8) << ' ' << v_U8.capacity() << endl;
 	v_U8.push_back(1);
@@ -268,6 +282,7 @@ int main(void) {
 	RUN_TEST(test_AverageThreeBytes_should_AverageMidRangeValues);
 	RUN_TEST(test_AverageThreeBytes_should_AverageHighValues);
 	RUN_TEST(test_string_hash);
+	RUN_TEST(test_heap_stats);
 	UNITY_END();
 	
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)g_ADCBuf, ADC_CHAN_NO);
