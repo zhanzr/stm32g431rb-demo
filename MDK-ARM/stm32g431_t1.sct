@@ -1,0 +1,81 @@
+#! armclang -E --target=arm-arm-none-eabi -mcpu=cortex-m4 -xc
+/*
+;-------- <<< Use Configuration Wizard in Context Menu >>> -------------------
+*/
+
+/*--------------------- Stack / Heap Configuration ---------------------------
+; <h> Stack / Heap Configuration
+;   <o0> Stack Size (in Bytes) <0x0-0xFFFFFFFF:8>
+;   <o1> Heap Size (in Bytes) <0x0-0xFFFFFFFF:8>
+;   <o2> gap before heap base (in Bytes) <0x0-0xFFFFFFFF:8>
+;   <o3> gap between heap top and stack base (in Bytes) <0x0-0xFFFFFFFF:8>
+;   <o4> gap between stack top and rw_zi base (in Bytes) <0x0-0xFFFFFFFF:8>
+;   <o5> no init size (in Bytes) <0x0-0xFFFFFFFF:8>
+; </h>
+ *----------------------------------------------------------------------------*/
+#define __STACK_SIZE		0x00001800
+#define __HEAP_SIZE			0x00000800
+#define	__GAP_INIT	0x08
+#define __GAP_HEAP_TOP_STACK_BASE	0x08
+#define __GAP_STACK_TOP_RW_BASE		0x08
+#define __NO_INIT_SIZE		0
+
+#define __FLASH_BASE     0x8000000
+#define __FLASH_SIZE     0x20000
+
+#define __SRAM1_BASE  0x20000000
+#define __SRAM1_SIZE  0x00004000
+
+#define __SRAM2_BASE  0x20004000
+#define __SRAM2_SIZE  0x00001800
+
+#define __RAM_1_2_BASE  __SRAM1_BASE
+#define __RAM_1_2_SIZE  (__SRAM1_SIZE + __SRAM2_SIZE)
+
+#define __CCM_SRAM_SBUS_BASE  0x20005800
+#define __CCM_SRAM_SBUS_SIZE  0x00002800
+
+#define __CCM_SRAM_BASE  0x10000000
+#define __CCM_SRAM_SIZE  0x00002800
+
+#define __RO_BASE         __FLASH_BASE
+#define __RO_SIZE         __FLASH_SIZE
+
+; __RAM_1_2_BASE for heap and stack
+; Low	-> High
+;|	Initial Gap	|	Heap	|	heap_stack gap	|	Stack	|	stack_rwzi gap	|	RW_ZI region 1 |	No_Init region(if any)	|
+#define __HEAP_BASE			(AlignExpr(__RAM_1_2_BASE + __GAP_INIT, 8))
+#define __HEAP_TOP			(AlignExpr(__HEAP_BASE + __HEAP_SIZE, 8))
+#define __STACK_TOP			(AlignExpr(__HEAP_TOP + __GAP_HEAP_TOP_STACK_BASE + __STACK_SIZE, 8))
+#define __RWZI_BASE_1		(AlignExpr(__GAP_STACK_TOP_RW_BASE + __STACK_TOP, 8))
+
+#define __RWZI_SIZE_1			(AlignExpr(__RAM_1_2_SIZE - __GAP_INIT - __HEAP_SIZE - __GAP_HEAP_TOP_STACK_BASE - __STACK_SIZE - __GAP_STACK_TOP_RW_BASE, 8))
+
+
+LR_ROM __RO_BASE __RO_SIZE  {
+	ER_ROM __RO_BASE __RO_SIZE  {
+		*.o (RESET, +First)
+		*(InRoot$$Sections)
+		.ANY (+RO)
+		.ANY (+XO)
+	}
+  
+	; ---------------------------------------------------------
+	; CCM: Critical code that must execute with deterministic timing
+	; This region is mapped at 0x00000000 (CCM address space)
+	; ---------------------------------------------------------
+	ER_PSRAM __CCM_SRAM_BASE __CCM_SRAM_SIZE {
+		*.o (RAM_CODE)
+	}
+	
+	ARM_LIB_STACK __STACK_TOP EMPTY -__STACK_SIZE {
+	}
+
+	ARM_LIB_HEAP  __HEAP_BASE EMPTY  __HEAP_SIZE {
+	}
+
+	RW_ZI_REGION __RWZI_BASE_1 (__RWZI_SIZE_1)  {
+		.ANY (+RW +ZI)
+	}
+}
+
