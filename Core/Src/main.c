@@ -29,6 +29,9 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+
+#include "custom_def.h"
+#include "dhry.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,6 +58,14 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
+volatile uint16_t g_ADCBuf[3];
+
+extern uint32_t __Vectors;
+extern uint32_t __Vectors_End;
+extern uint32_t __Vectors_Size;
+
+extern void Proc_5 (void);
+
 int stdout_putchar (int ch) {
 	HAL_UART_Transmit(&hlpuart1, (uint8_t*)&ch, 1, 0xFFFF);
 	return ch;
@@ -108,14 +119,28 @@ int main(void)
   MX_ADC1_Init();
   MX_LPUART1_UART_Init();
   /* USER CODE BEGIN 2 */
-	printf("Hello World, %08X %u\n", SCB->CPUID, SystemCoreClock);
+	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)g_ADCBuf, sizeof(g_ADCBuf)/sizeof(g_ADCBuf[0]));
+		
+	printf("CC: %s\n", COMPILER_NAME);		
+	printf("%u Hz, %08X, CM:%d, FPU_USED:%d\n",
+		SystemCoreClock, SCB->CPUID,
+		__CORTEX_M, __FPU_USED);
+	printf("vector: %08X %08X %08X %08X %08X\n", (uint32_t)(&__Vectors), (uint32_t)(&__Vectors_End), (uint32_t)(&__Vectors_Size), (uint32_t)(Proc_5), (uint32_t)(stdout_putchar));
+	printf("%u %u %u\n", g_ADCBuf[0], g_ADCBuf[1], g_ADCBuf[2]);
+	
+  dhry_main(SystemCoreClock);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1) {
-		printf("Hello World, %08X %u\n", SCB->CPUID, SystemCoreClock);
-		HAL_Delay(5000);
+		printf("\n%u Hz, %08X, CM:%d, FPU_USED:%d\n",
+			SystemCoreClock, SCB->CPUID,
+			__CORTEX_M, __FPU_USED);
+		printf("vector: %08X %08X %08X %08X %08X\n", (uint32_t)(&__Vectors), (uint32_t)(&__Vectors_End), (uint32_t)(&__Vectors_Size), (uint32_t)(Proc_5), (uint32_t)(stdout_putchar));
+		printf("%u %u %u\n", g_ADCBuf[0], g_ADCBuf[1], g_ADCBuf[2]);
+		HAL_Delay(60 * configTICK_RATE_HZ);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
