@@ -341,7 +341,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32G431xx,USE_HAL_DRIVER,STM32G431xx</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32G4xx_HAL_Driver/Inc;../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32G4xx/Include;../Drivers/CMSIS/Include;..\User</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32G4xx_HAL_Driver/Inc;../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32G4xx/Include;../Drivers/CMSIS/Include;..\User;..\coremark_1_0_1;..\coremark_1_0_1\stm32g431</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -1938,19 +1938,49 @@
           <GroupName>User</GroupName>
           <Files>
             <File>
-              <FileName>dhry_1.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\User\dhry_1.c</FilePath>
-            </File>
-            <File>
-              <FileName>dhry_2.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\User\dhry_2.c</FilePath>
-            </File>
-            <File>
               <FileName>utils.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\User\utils.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>coremark_1_0_1</GroupName>
+          <Files>
+            <File>
+              <FileName>core_list_join.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\coremark_1_0_1\core_list_join.c</FilePath>
+            </File>
+            <File>
+              <FileName>core_main.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\coremark_1_0_1\core_main.c</FilePath>
+            </File>
+            <File>
+              <FileName>core_matrix.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\coremark_1_0_1\core_matrix.c</FilePath>
+            </File>
+            <File>
+              <FileName>core_state.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\coremark_1_0_1\core_state.c</FilePath>
+            </File>
+            <File>
+              <FileName>core_util.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\coremark_1_0_1\core_util.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>coremark_port</GroupName>
+          <Files>
+            <File>
+              <FileName>core_portme.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\coremark_1_0_1\stm32g431\core_portme.c</FilePath>
             </File>
           </Files>
         </Group>
